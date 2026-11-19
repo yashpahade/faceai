@@ -1,37 +1,58 @@
-# Face AI Docker Setup
+# FaceAI
 
-This repository contains a face recognition backend with InsightFace and FAISS.
+Production-style face recognition service, built phase by phase to learn MLOps.
 
-## Run with Docker
+| Phase | Topic | Status |
+|---|---|---|
+| 0 | Foundation: git, packaging, config, logging, tests, Docker | ✅ done |
+| 1 | Core pipeline: aligned ArcFace embeddings, GPU, vector index | ⏳ next |
+| 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | |
+| 3 | Experiment tracking + model registry: MLflow | |
+| 4 | Serving: batching, performance | |
+| 5 | CI/CD with eval gate: GitHub Actions | |
+| 6 | Monitoring + drift: Prometheus, Grafana | |
+| 7 | Trust & safety: liveness, encryption, data deletion | |
 
-Build and run with Docker Compose:
+Learning notes per phase: [`docs/`](docs/). Old code for reference: [`legacy/`](legacy/).
 
-```bash
-docker compose up --build
+## Project layout
+
+```
+src/faceai/         # application package (installable)
+  config.py         # typed settings (env vars FACEAI_*)
+  logging.py        # structured/JSON logging + request IDs
+  api/app.py        # FastAPI app factory, health endpoints
+tests/              # pytest
+legacy/             # pre-refactor code (read-only reference)
+pyproject.toml      # deps + tool config
+requirements.lock   # exact pinned runtime versions (used by Docker)
 ```
 
-Then open:
+## Local development (Windows, PowerShell)
 
-- http://127.0.0.1:8000/docs
+```powershell
+.venv\Scripts\python -m pip install -e ".[dev]"   # install (once)
+.venv\Scripts\python -m pre_commit install         # git hooks (once)
+copy .env.example .env                              # config (once)
+
+.venv\Scripts\python -m faceai                     # run server -> http://127.0.0.1:8000/docs
+.venv\Scripts\python -m pytest --cov=faceai        # tests + coverage
+.venv\Scripts\python -m ruff check . ; .venv\Scripts\python -m ruff format .   # lint + format
+```
+
+## Docker
+
+```powershell
+docker compose up --build
+curl http://127.0.0.1:8000/health/ready
+```
 
 ## Endpoints
 
-- `POST /register` — register a face name and image
-- `POST /recognize` — recognize faces in an image
-- `GET /faces` — list registered faces
-- `DELETE /faces/{face_id}` — delete a registered face
-- `POST /bulk_import` — import images from `data/faces`
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/health/live` | Liveness: is the process alive? |
+| GET | `/health/ready` | Readiness: are models loaded? 503 if not |
+| GET | `/version` | App version (model version added in Phase 3) |
 
-## Local data persistence
-
-The `docker-compose.yml` mounts:
-
-- `./data` → `/app/data`
-- `./uploads` → `/app/uploads`
-
-So FAISS index and image data persist across container restarts.
-
-## Notes
-
-- You can still use `.env` if desired, but Docker is the recommended way to run this service.
-- If you want to pass environment variables directly, add them under `environment:` in `docker-compose.yml`.
+Every response has an `X-Request-ID` header. Send your own to trace a request through the logs.

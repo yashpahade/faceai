@@ -38,7 +38,7 @@ class FaceApp:
             return
 
         source = input("Register from (1) Webcam or (2) Image Path: ")
-        
+
         img = None
         if source == "1":
             img = self._capture_from_webcam("Position your face and press SPACE to capture")
@@ -61,7 +61,7 @@ class FaceApp:
         """Faces recognize karne ke liye"""
         print("\n--- FACE RECOGNITION ---")
         source = input("Recognize from (1) Webcam or (2) Image Path: ")
-        
+
         if source == "1":
             print("Starting webcam recognition. Press 'q' to exit.")
             self._live_recognition()
@@ -71,10 +71,10 @@ class FaceApp:
             if img is None:
                 print(f"Error: Could not read image from {path}")
                 return
-            
+
             print("Processing image...")
             results = self.pipeline.process_image(img, return_visualization=True)
-            
+
             if results["faces_found"] > 0:
                 print(f"Found {results['faces_found']} faces")
                 for i, face in enumerate(results["faces"]):
@@ -83,7 +83,7 @@ class FaceApp:
                         print(f"  Face {i+1}: {match['name']} ({match['confidence']}%)")
                     else:
                         print(f"  Face {i+1}: Unknown")
-                
+
                 # Show result
                 cv2.imshow("Recognition Results", results["visualization"])
                 print("Press any key on the image window to continue")
@@ -178,21 +178,21 @@ class FaceApp:
 
         print(instruction)
         captured_frame = None
-        
+
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
-            
+
             cv2.imshow("Webcam - Press SPACE to Capture, ESC to Cancel", frame)
             key = cv2.waitKey(1)
-            
+
             if key == 32: # SPACE
                 captured_frame = frame
                 break
             elif key == 27: # ESC
                 break
-        
+
         cap.release()
         cv2.destroyAllWindows()
         return captured_frame
@@ -208,19 +208,19 @@ class FaceApp:
             ret, frame = cap.read()
             if not ret:
                 break
-            
+
             # Process frame
             results = self.pipeline.process_image(frame, return_visualization=True)
-            
+
             # Show frame
             if "visualization" in results:
                 cv2.imshow("Live Face Recognition - Press 'q' to Quit", results["visualization"])
             else:
                 cv2.imshow("Live Face Recognition - Press 'q' to Quit", frame)
-            
+
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
-        
+
         cap.release()
         cv2.destroyAllWindows()
 
@@ -233,7 +233,7 @@ class FaceApp:
 
 def main():
     app = FaceApp()
-    
+
     while True:
         print("\n=== FACE RECOGNITION SYSTEM ===")
         print("1. Register New Face")
@@ -242,9 +242,9 @@ def main():
         print("4. Clear Database")
         print("5. Bulk Import Faces from data/faces")
         print("6. Exit")
-        
+
         choice = input("\nSelect an option: ")
-        
+
         if choice == "1":
             app.register_new_face()
         elif choice == "2":

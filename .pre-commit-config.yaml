@@ -1,0 +1,50 @@
+# Har `git commit` se pehle ye checks automatically chalte hain.
+# Setup (ek baar): .venv/Scripts/python -m pre_commit install
+#
+# Note: hooks `python -m ...` se chalte hain (console-script .exe se nahi), kyunki is machine pe
+# Windows Application Control pip-generated .exe launchers ko block karta hai.
+repos:
+  - repo: local
+    hooks:
+      - id: trailing-whitespace
+        name: trim trailing whitespace
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.trailing_whitespace_fixer
+        types: [text]
+      - id: end-of-file-fixer
+        name: fix end of files
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.end_of_file_fixer
+        types: [text]
+      - id: check-yaml
+        name: check yaml
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.check_yaml
+        types: [yaml]
+      - id: check-toml
+        name: check toml
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.check_toml
+        types: [toml]
+      - id: check-added-large-files   # galti se model/dataset commit hone se roko
+        name: check for added large files
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.check_added_large_files --maxkb=1024
+        stages: [pre-commit]
+      - id: detect-private-key
+        name: detect private key
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.detect_private_key
+        types: [text]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format

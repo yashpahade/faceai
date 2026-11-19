@@ -20,10 +20,11 @@ venv/
 !.env.example
 
 # --- Data & artifacts: git mein nahi, DVC/MLflow mein jayenge (Phase 2-3) ---
-data/
-uploads/
-models/
-mlruns/
+# Leading "/" = sirf repo root wala folder (warna src/faceai/models/ bhi ignore ho jaata!)
+/data/
+/uploads/
+/models/
+/mlruns/
 *.faiss
 *.bin
 *.pkl

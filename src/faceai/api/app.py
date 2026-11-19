@@ -20,13 +20,33 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 
 from faceai import __version__
+from faceai.api.routes import router
 from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
+from faceai.service import RecognitionService
+from faceai.store.db import Database
+from faceai.vision.types import FaceEngineProtocol
 
 logger = logging.getLogger("faceai.api")
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def _build_engine(settings: Settings) -> FaceEngineProtocol:
+    from faceai.vision.engine import FaceEngine  # heavy import (onnxruntime) sirf yahan
+
+    engine = FaceEngine(
+        settings.models_dir, settings.model_pack, settings.det_size, settings.device
+    )
+    engine.warmup()
+    return engine
+
+
+def create_app(
+    settings: Settings | None = None, engine: FaceEngineProtocol | None = None
+) -> FastAPI:
+    """`engine` inject kar sakte ho (tests mein fake engine).
+
+    Isse Dependency Injection kehte hain.
+    """
     settings = settings or get_settings()
     setup_logging(settings.log_level, settings.log_json)
 
@@ -34,12 +54,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("starting faceai v%s (env=%s)", __version__, settings.env)
         app.state.settings = settings
-        # Phase 1: yahan face model + vector index load hoga, phir ready=True
-        app.state.ready = True
+        app.state.service = None
+        app.state.ready = False
+        db = Database(settings.db_path)
+        try:
+            t0 = time.perf_counter()
+            eng = engine or _build_engine(settings)
+            app.state.service = RecognitionService(eng, db, settings)
+            app.state.ready = True
+            logger.info(
+                "model ready: %s on %s (%.1fs)", eng.model_id, eng.device, time.perf_counter() - t0
+            )
+        except Exception:
+            # App zinda rahe (liveness OK) par ready nahi -> load balancer traffic nahi bhejega
+            logger.exception("model load failed; service NOT ready")
         yield
+        db.close()
         logger.info("shutting down")
 
     app = FastAPI(title="FaceAI", version=__version__, lifespan=lifespan)
+    app.include_router(router)
 
     @app.middleware("http")
     async def request_context(request: Request, call_next) -> Response:
@@ -77,8 +111,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     @app.get("/version", tags=["meta"])
-    def version() -> dict:
-        # Phase 3: yahan model name + model version (MLflow registry se) bhi aayega
-        return {"app_version": __version__, "env": settings.env}
+    def version(request: Request) -> dict:
+        # Phase 3: model version MLflow registry se aayega
+        svc = getattr(request.app.state, "service", None)
+        return {
+            "app_version": __version__,
+            "env": settings.env,
+            "model_id": svc.engine.model_id if svc else None,
+            "device": svc.engine.device if svc else None,
+        }
 
     return app

@@ -43,11 +43,30 @@ class Settings(BaseSettings):
 
     # --- Paths ---
     data_dir: Path = PROJECT_ROOT / "data"
+    models_dir: Path = PROJECT_ROOT / "models"
+
+    # --- Model runtime ---
+    model_pack: str = "buffalo_l"
+    device: Literal["auto", "cuda", "cpu"] = Field(
+        default="auto", description="auto = GPU mile to GPU, warna CPU"
+    )
+    det_size: int = Field(default=640, ge=160, le=1280, description="detector input (square)")
 
     # --- Recognition (Phase 2 mein evaluation se tune hoga, abhi placeholder) ---
     det_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
-    match_threshold: float = Field(default=0.4, ge=-1.0, le=1.0)
+    match_threshold: float = Field(
+        default=0.4, ge=-1.0, le=1.0, description="cosine similarity; >= isse => same person"
+    )
     max_upload_mb: int = Field(default=10, gt=0)
+
+    # --- Enrollment quality gates ---
+    enroll_min_det_score: float = Field(default=0.6, ge=0.0, le=1.0)
+    enroll_min_face_px: int = Field(default=60, ge=16, description="bbox ki chhoti side (pixels)")
+    enroll_min_sharpness: float = Field(default=40.0, ge=0.0, description="Laplacian variance")
+
+    @property
+    def db_path(self) -> Path:
+        return self.data_dir / "faceai.db"
 
     @field_validator("log_level", mode="before")
     @classmethod

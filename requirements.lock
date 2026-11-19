@@ -1,17 +1,28 @@
-# Exact pinned versions (generated). Regenerate: pip freeze --exclude-editable > requirements.lock
+# Exact pinned runtime versions (Linux/CPU container). onnxruntime is added in Dockerfile.
+# Regenerate: pip freeze --exclude-editable, minus dev/gpu/windows-only packages
 annotated-types==0.8.0
 anyio==4.16.0
 click==8.5.1
+coloredlogs==15.0.1
+faiss-cpu==1.11.0
 fastapi==0.115.6
+flatbuffers==25.12.19
 h11==0.16.0
 httptools==0.9.0
+humanfriendly==10.0
 idna==3.20
+mpmath==1.3.0
+numpy==2.2.6
+opencv-python-headless==4.11.0.86
+packaging==26.3
+protobuf==7.36.2
 pydantic==2.10.4
 pydantic-settings==2.7.0
 pydantic_core==2.27.2
 python-dotenv==1.2.4
 python-multipart==0.0.20
 starlette==0.41.3
+sympy==1.14.0
 typing_extensions==4.16.0
 uvicorn==0.32.1
 watchfiles==1.3.0

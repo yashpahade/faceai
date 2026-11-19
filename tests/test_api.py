@@ -21,7 +21,12 @@ def test_readiness_returns_503_when_not_ready(client):
 
 def test_version(client):
     r = client.get("/version")
-    assert r.json() == {"app_version": __version__, "env": "test"}
+    assert r.json() == {
+        "app_version": __version__,
+        "env": "test",
+        "model_id": "fake/v1",
+        "device": "cpu",
+    }
 
 
 def test_request_id_is_generated(client):

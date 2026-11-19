@@ -17,20 +17,20 @@ from services.face_processor import FaceProcessor
 
 def test_face_detection():
     """Face detection service ka basic test"""
-    
+
     print("="*50)
     print("FACE DETECTION SERVICE TEST")
     print("="*50)
-    
+
     # 1. Detector initialize karo
     print("\n1. Initializing Face Detector...")
     detector = FaceDetector(method="insightface")
     print("✓ Detector initialized")
-    
+
     # 2. Test image load karo (webcam se capture)
     print("\n2. Capturing test image from webcam...")
     cap = cv2.VideoCapture(0)  # Default camera
-    
+
     if not cap.isOpened():
         print("✗ Camera not available!")
         print("Creating test image with drawn faces instead...")
@@ -39,12 +39,12 @@ def test_face_detection():
     else:
         ret, test_image = cap.read()
         cap.release()
-        
+
         if not ret:
             print("✗ Failed to capture image")
             return
         print("✓ Image captured")
-    
+
     # 3. Image validate karo
     print("\n3. Validating image...")
     is_valid = FaceProcessor.validate_face_image(test_image)
@@ -52,12 +52,12 @@ def test_face_detection():
         print("✗ Invalid image")
         return
     print("✓ Image valid")
-    
+
     # 4. Faces detect karo
     print("\n4. Detecting faces...")
     faces = detector.detect_faces(test_image, confidence_threshold=0.5)
     print(f"✓ Found {len(faces)} face(s)")
-    
+
     # 5. Results show karo
     print("\n5. Detection Results:")
     for i, face in enumerate(faces):
@@ -66,17 +66,17 @@ def test_face_detection():
         print(f"   - Confidence: {face['confidence']:.2f}")
         if face.get('landmarks'):
             print(f"   - Landmarks: {len(face['landmarks'])} points")
-    
+
     # 6. Visualize result
     if len(faces) > 0:
         print("\n6. Drawing detection results...")
         result_image = detector.draw_faces(test_image, faces)
-        
+
         # Save image
         output_path = "test_results.jpg"
         cv2.imwrite(output_path, result_image)
         print(f"✓ Result saved to {output_path}")
-    
+
     print("\n" + "="*50)
     print("TEST COMPLETE!")
     print("="*50)

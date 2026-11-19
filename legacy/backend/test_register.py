@@ -59,15 +59,15 @@ if len(faces) > 0:
     face = faces[0]
     print(f"Face confidence: {face['confidence']}")
     print(f"Face bbox: {face['bbox']}")
-    
+
     # Crop face
     face_crop = detector.preprocess_face(img, face['bbox'])
     print(f"Face crop shape: {face_crop.shape}")
-    
+
     # Extract features
     print("Extracting features...")
     embedding = extractor.extract_features(face_crop)
-    
+
     if embedding is not None:
         print(f"✓ SUCCESS! Embedding shape: {embedding.shape}")
         print(f"First 5 values: {embedding[:5]}")
@@ -76,13 +76,10 @@ if len(faces) > 0:
         print("Trying with resized image...")
         face_resized = cv2.resize(face_crop, (112, 112))
         embedding = extractor.extract_features(face_resized)
-        
+
         if embedding is not None:
             print(f"✓ SUCCESS with resize!")
         else:
             print("✗ Still failed. Image quality issue.")
 else:
     print("No faces detected!")
-    
-    
-    

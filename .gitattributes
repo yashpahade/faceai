@@ -1,0 +1,6 @@
+# Repo mein hamesha LF line endings (Docker/Linux/CI ke liye). Windows scripts CRLF.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.png binary
+*.jpg binary

@@ -27,7 +27,7 @@ class FaceProcessingPipeline:
     Complete face processing pipeline
     Image → Detection → Preprocessing → Feature Extraction → Recognition
     """
-    
+
     def __init__(
         self,
         detector_method: str = "insightface",
@@ -37,24 +37,24 @@ class FaceProcessingPipeline:
         Pipeline initialize karo with all components
         """
         logger.info("Initializing Face Processing Pipeline...")
-        
+
         # Core components
         self.detector = FaceDetector(method=detector_method)
         self.extractor = FeatureExtractor(model_type=extractor_model)
         self.processor = FaceProcessor()
         self.quality_checker = FaceQualityChecker()
-        
+
         # FAISS Manager initialize karo
         self.faiss_manager = FAISSManager(index_path=settings.FAISS_INDEX_PATH)
-        
+
         # Configuration
         self.confidence_threshold = settings.FACE_DETECTION_THRESHOLD
         self.recognition_threshold = settings.FACE_RECOGNITION_THRESHOLD
         self.enhance_faces = True
         self.check_quality = True
-        
+
         logger.info("Pipeline ready with FAISS integration!")
-    
+
     def process_image(
         self,
         image: np.ndarray,
@@ -63,12 +63,12 @@ class FaceProcessingPipeline:
     ) -> Dict:
         """
         Complete pipeline through a single image
-        
+
         Parameters:
         - image: Input image (numpy array)
         - return_visualization: Draw results on image
         - run_recognition: Search database for matches
-        
+
         Returns:
         - Dictionary with all processing results
         """
@@ -78,32 +78,32 @@ class FaceProcessingPipeline:
             "faces": [],
             "processing_time": {}
         }
-        
+
         # Step 1: Validate image
         t1 = time.time()
         if not self.processor.validate_face_image(image):
             results["status"] = "invalid_image"
             return results
-        
+
         # Step 2: Detect faces
         t2 = time.time()
         faces = self.detector.detect_faces(
-            image, 
+            image,
             confidence_threshold=self.confidence_threshold
         )
         results["faces_found"] = len(faces)
         results["processing_time"]["detection"] = time.time() - t2
-        
+
         if len(faces) == 0:
             results["status"] = "no_faces_found"
             return results
-        
+
         # Step 3: Process each face
         t3 = time.time()
-        
+
         for i, face in enumerate(faces):
             face_result = self._process_single_face(image, face, i)
-            
+
             # Step 4: Recognition (agar enabled hai aur embedding mili hai)
             if run_recognition and face_result.get("has_embedding"):
                 recognition_result = self.faiss_manager.recognize_face(
@@ -111,18 +111,18 @@ class FaceProcessingPipeline:
                     threshold=self.recognition_threshold
                 )
                 face_result["recognition"] = recognition_result
-            
+
             results["faces"].append(face_result)
-        
+
         results["processing_time"]["extraction_and_recognition"] = time.time() - t3
-        
+
         # Step 5: Visualization (optional)
         if return_visualization:
             vis_image = self.draw_pipeline_results(image, results["faces"])
             results["visualization"] = vis_image
-        
+
         results["total_time"] = time.time() - t1
-        
+
         return results
 
     def register_person(
@@ -136,34 +136,34 @@ class FaceProcessingPipeline:
         """
         # Detection
         faces = self.detector.detect_faces(image, confidence_threshold=self.confidence_threshold)
-        
+
         if len(faces) == 0:
             return {"success": False, "message": "No face detected in image"}
-        
+
         if len(faces) > 1:
             return {"success": False, "message": f"Multiple faces ({len(faces)}) detected. Registration requires exactly one face."}
-        
+
         # Process the single face
         face_result = self._process_single_face(image, faces[0], 0)
-        
+
         if not face_result.get("has_embedding"):
             return {"success": False, "message": "Failed to extract features from face"}
-        
+
         # Quality check check
         if self.check_quality and not face_result["quality"]["is_usable"]:
             return {
-                "success": False, 
+                "success": False,
                 "message": f"Poor image quality: {', '.join(face_result['quality']['issues'])}",
                 "quality": face_result["quality"]
             }
-        
+
         # Register in FAISS
         reg_result = self.faiss_manager.register_face(
             face_vector=face_result["embedding"],
             person_name=person_name,
             additional_info=additional_info
         )
-        
+
         return reg_result
 
     def draw_pipeline_results(
@@ -173,35 +173,35 @@ class FaceProcessingPipeline:
     ) -> np.ndarray:
         """Draw bounding boxes and names on image"""
         img_copy = image.copy()
-        
+
         for res in face_results:
             bbox = res["bbox"]
             name = "Unknown"
             confidence = 0
-            
+
             if res.get("recognition") and res["recognition"].get("is_recognized"):
                 best_match = res["recognition"]["best_match"]
                 name = best_match["name"]
                 confidence = best_match["confidence"]
-            
+
             # Draw box
             cv2.rectangle(img_copy, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 255, 0), 2)
-            
+
             # Label
             label = f"{name} ({confidence}%)" if name != "Unknown" else "Unknown"
             cv2.putText(
-                img_copy, 
-                label, 
-                (bbox[0], bbox[1] - 10), 
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                0.6, 
-                (0, 255, 0), 
+                img_copy,
+                label,
+                (bbox[0], bbox[1] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
                 2
             )
-            
+
         return img_copy
 
-    
+
     def _process_single_face(
         self,
         image: np.ndarray,
@@ -210,7 +210,7 @@ class FaceProcessingPipeline:
     ) -> Dict:
         """
         Ek face ko completely process karo - FIXED VERSION
-        
+
         Returns:
         - Face data with embedding and metadata
         """
@@ -220,28 +220,28 @@ class FaceProcessingPipeline:
             "confidence": face_detection["confidence"],
             "has_embedding": False
         }
-        
+
         # ===== STEP A: Crop face =====
         face_crop = self.detector.preprocess_face(
-            image, 
+            image,
             face_detection["bbox"],
             target_size=(112, 112)
         )
-        
+
         print(f"  Face {face_index}: crop shape={face_crop.shape}")
-        
+
         # ===== STEP B: Quality check =====
         if self.check_quality:
             quality = self.quality_checker.check_quality(face_crop)
             face_data["quality"] = quality
-            
+
             # Improve if needed
             if not quality["is_usable"] and self.enhance_faces:
                 print(f"  Face {face_index}: enhancing quality...")
                 face_crop = self.quality_checker.improve_quality(face_crop)
         else:
             face_data["quality"] = {"is_usable": True}
-        
+
         # ===== STEP C: Extract features (MULTIPLE METHODS) =====
         embedding = None
 
@@ -333,23 +333,23 @@ class FaceProcessingPipeline:
                         print(f"  Face {face_index}: ✓ Embedding from resize retry")
             except Exception as e:
                 print(f"  Face {face_index}: Method 4 error: {e}")
-        
+
         # ===== STEP D: Store embedding =====
         if embedding is not None:
             # Normalize
             norm = np.linalg.norm(embedding)
             if norm > 0:
                 embedding = embedding / norm
-            
+
             face_data["embedding"] = embedding
             face_data["has_embedding"] = True
             face_data["vector_dimension"] = embedding.shape[0]
             print(f"  Face {face_index}: ✓ Final embedding shape={embedding.shape}")
         else:
             print(f"  Face {face_index}: ✗ ALL METHODS FAILED - No embedding extracted")
-        
+
         return face_data
-    
+
     def process_image_file(
         self,
         image_path: Path,
@@ -360,13 +360,13 @@ class FaceProcessingPipeline:
         """
         # Read image
         image = cv2.imread(str(image_path))
-        
+
         if image is None:
             return {"status": "error", "message": "Failed to read image"}
-        
+
         # Process
         return self.process_image(image, return_visualization)
-    
+
     def get_pipeline_info(self) -> Dict:
         """Pipeline configuration info"""
         return {

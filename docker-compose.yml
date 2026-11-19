@@ -6,6 +6,7 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+      - ./models:/app/models:ro   # model artifacts (read-only)
     env_file:
       - path: .env
         required: false

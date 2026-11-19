@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from faceai.api.app import create_app
 from faceai.config import Settings
+from tests.fakes import FakeEngine
 
 
 @pytest.fixture
@@ -13,5 +14,5 @@ def settings(tmp_path) -> Settings:
 
 @pytest.fixture
 def client(settings):
-    with TestClient(create_app(settings)) as c:  # `with` => lifespan (startup) chalega
+    with TestClient(create_app(settings, engine=FakeEngine())) as c:  # `with` => lifespan chalega
         yield c

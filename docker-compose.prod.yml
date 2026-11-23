@@ -1,0 +1,91 @@
+# Production stack (Phase E):  web (Caddy + React, HTTPS) -> api (FastAPI) -> db (Postgres)
+#
+#   cp deploy/env/prod.env.example .env.prod   # secrets bharo (git mein NAHI)
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#   docker compose -f docker-compose.prod.yml exec api python -m faceai.attendance.migrate
+#   docker compose -f docker-compose.prod.yml exec api python -m faceai.attendance.create_admin --email you@x.in
+#
+# Model files (license!) image mein nahi: ./models volume (registry pull, Phase 3).
+name: faceai-prod
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: faceai
+      POSTGRES_USER: faceai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faceai -d faceai"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+    # port publish NAHI: DB sirf internal network pe
+
+  api:
+    build:
+      context: .
+      args:
+        EXTRA_PIP: "psycopg[binary]==3.2.3"
+    environment:
+      FACEAI_ENV: prod
+      FACEAI_PRODUCT_DB_URL: postgresql+psycopg://faceai:${POSTGRES_PASSWORD}@db:5432/faceai
+      FACEAI_JWT_SECRET: ${FACEAI_JWT_SECRET:?set FACEAI_JWT_SECRET}
+      FACEAI_ENCRYPTION_KEYS: ${FACEAI_ENCRYPTION_KEYS:?set FACEAI_ENCRYPTION_KEYS}
+      FACEAI_API_KEY_HASHES: ${FACEAI_API_KEY_HASHES:?set FACEAI_API_KEY_HASHES}
+      FACEAI_MATCH_THRESHOLD: ${FACEAI_MATCH_THRESHOLD:-0.4}
+      FACEAI_TIMEZONE: ${FACEAI_TIMEZONE:-Asia/Kolkata}
+      FACEAI_TRUSTED_PROXIES: web
+      FACEAI_RETENTION_DAYS: ${FACEAI_RETENTION_DAYS:-}
+    volumes:
+      - biodata:/app/data # encrypted biometric store (single replica: SQLite)
+      - ./models:/app/models:ro
+      - backups:/backups # biometric backup: host cron -> exec api python -m faceai.ops.backup --out /backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      additional_contexts:
+        deploy: ./deploy
+    environment:
+      FACEAI_DOMAIN: ${FACEAI_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data # TLS certificates
+    depends_on: [api]
+    restart: unless-stopped
+
+  # Roz raat 2 baje: Postgres dump + biometric SQLite online backup, 7 din retention
+  backup:
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          now=$$(date -u +%Y%m%dT%H%M%SZ)
+          pg_dump -h db -U faceai -d faceai -Fc -f /backups/product-$$now.dump && echo "backup ok $$now"
+          ls -1t /backups/product-*.dump | tail -n +8 | xargs -r rm --
+          sleep 86400
+        done
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  biodata:
+  caddy_data:
+  backups:

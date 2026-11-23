@@ -21,3 +21,12 @@ def settings(tmp_path) -> Settings:
 def client(settings):
     with TestClient(create_app(settings, engine=FakeEngine())) as c:  # `with` => lifespan chalega
         yield c
+
+
+@pytest.fixture
+def app_client_rl(settings):
+    """Rate limiting ON (default) wala app (fresh limiter per test)."""
+    with TestClient(
+        create_app(settings.model_copy(update={"rate_limit": True}), engine=FakeEngine())
+    ) as c:
+        yield c

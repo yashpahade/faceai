@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: faceai
+    folder: FaceAI
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

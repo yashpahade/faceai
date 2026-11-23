@@ -16,6 +16,7 @@ import numpy as np
 from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
 
 from faceai.api.schemas import EnrollOut, PersonCreate, PersonOut, RecognizeOut
+from faceai.monitoring import metrics as m
 from faceai.service import EnrollmentError, NotFoundError, RecognitionService
 from faceai.serving.limiter import OverloadedError
 
@@ -40,6 +41,25 @@ def read_image(request: Request, file: UploadFile) -> np.ndarray:
     return img
 
 
+def observe_recognition(request: Request, img: np.ndarray, res) -> None:
+    """Model behaviour metrics + drift features (Phase 6). Sirf numbers, koi image/ID nahi."""
+    m.INFERENCE_LATENCY.labels("inference").observe(res.timings_ms["inference"] / 1000)
+    m.INFERENCE_LATENCY.labels("search").observe(res.timings_ms["search"] / 1000)
+    m.FACES_PER_IMAGE.observe(len(res.faces))
+    drift = request.app.state.drift
+    if res.faces:
+        drift.observe("brightness", float(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).mean()))
+    for f in res.faces:
+        m.RECOGNITIONS.labels("match" if f.match else "unknown").inc()
+        m.DET_SCORE.observe(f.det_score)
+        drift.observe("det_score", f.det_score)
+        x1, y1, x2, y2 = f.bbox
+        drift.observe("face_px", min(x2 - x1, y2 - y1))
+        if f.candidates:  # gallery khaali ho to similarity ka matlab nahi
+            m.TOP1_SIMILARITY.observe(f.candidates[0].similarity)
+            drift.observe("top1_similarity", f.candidates[0].similarity)
+
+
 @contextmanager
 def inference_slot(request: Request):
     """Admission control: slot nahi mila => 503 + Retry-After (client ko pata ho kab retry kare)."""
@@ -47,6 +67,7 @@ def inference_slot(request: Request):
         with request.app.state.limiter.slot():
             yield
     except OverloadedError:
+        m.REJECTED.inc()
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE, "server busy", headers={"Retry-After": "1"}
         ) from None
@@ -95,10 +116,12 @@ def enroll_face(
     except NotFoundError:
         raise HTTPException(404, "person not found") from None
     except EnrollmentError as e:
+        m.ENROLLMENTS.labels("rejected").inc()
         detail = {"message": str(e)}
         if e.quality:
             detail["quality"] = asdict(e.quality)
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail) from None
+    m.ENROLLMENTS.labels("ok").inc()
     return {"embedding_id": emb_id, "person_id": person_id, "quality": asdict(quality)}
 
 
@@ -111,6 +134,7 @@ def recognize(
     img = read_image(request, file)
     with inference_slot(request):
         res = svc.recognize(img)
+    observe_recognition(request, img, res)
     return {
         "faces": [asdict(f) for f in res.faces],
         "threshold": svc.s.match_threshold,

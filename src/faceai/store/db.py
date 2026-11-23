@@ -155,6 +155,10 @@ class Database:
         vecs = np.stack([np.frombuffer(r["vector"], dtype=np.float32) for r in rows])
         return ids, pids, vecs
 
+    def count_persons(self) -> int:
+        with self._lock:
+            return self._conn.execute("SELECT COUNT(*) FROM persons").fetchone()[0]
+
     def count_other_models(self, model_id: str) -> int:
         """Purane model ki embeddings - model upgrade ke baad re-enrollment/re-embedding chahiye."""
         with self._lock:

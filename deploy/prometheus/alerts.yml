@@ -1,0 +1,58 @@
+# Alert rules. Achha alert = user-visible problem + koi action le sake. "CPU 80%" alert nahi hai.
+# `for:` = kitni der tak condition sach rahe tab fire ho (ek spike pe raat 3 baje mat jagao).
+groups:
+  - name: faceai-service
+    rules:
+      - alert: FaceAIDown
+        expr: up{job="faceai"} == 0 or faceai_ready == 0
+        for: 2m
+        labels: { severity: page }
+        annotations:
+          summary: "FaceAI not serving (down or model not loaded)"
+          runbook: "docker compose logs api; /health/ready; model files + model_card.json present?"
+
+      - alert: FaceAIHighErrorRate
+        expr: |
+          sum(rate(faceai_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(faceai_http_requests_total[5m])), 1e-9) > 0.05
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "More than 5% of requests fail with 5xx"
+
+      - alert: FaceAISlowRecognize
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(faceai_http_request_duration_seconds_bucket{route="/v1/recognize"}[5m]))
+          ) > 1
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "p95 /v1/recognize latency above 1s (SLO)"
+
+      - alert: FaceAIOverloaded
+        expr: rate(faceai_overload_rejections_total[5m]) > 0.1
+        for: 10m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Admission control is rejecting requests - add capacity"
+
+  - name: faceai-model
+    rules:
+      # Labels nahi hain, to accuracy seedhe nahi dikhti. Ye proxies hain.
+      - alert: FaceAIUnknownRateSpike
+        expr: |
+          sum(rate(faceai_recognitions_total{result="unknown"}[1h]))
+            / clamp_min(sum(rate(faceai_recognitions_total[1h])), 1e-9) > 0.5
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "More than half of faces are 'unknown' - camera/lighting change or model issue?"
+
+      - alert: FaceAIInputDrift
+        expr: max(faceai_drift_psi) > 0.25
+        for: 30m
+        labels: { severity: ticket }
+        annotations:
+          summary: "Input/output distribution drifted (PSI > 0.25) on {{ $labels.feature }}"
+          runbook: "Grafana drift panel; compare recent images vs reference; re-evaluate on fresh data"

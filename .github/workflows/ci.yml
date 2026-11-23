@@ -87,5 +87,6 @@ jobs:
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:8000/health/live && break; sleep 1; done
           curl -fs http://127.0.0.1:8000/health/live
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/health/ready)" = 503
+          curl -fs http://127.0.0.1:8000/metrics | grep -q '^faceai_ready 0.0'
       - if: failure()
         run: docker logs faceai

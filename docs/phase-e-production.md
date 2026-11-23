@@ -33,7 +33,7 @@ docker compose -f docker-compose.prod.yml exec api python -m faceai.registry pul
 | **Real client IP** | `X-Forwarded-For` sirf `FACEAI_TRUSTED_PROXIES` (Caddy) se | Warna attacker header bhejke har request ko naya IP bana de |
 | **Secrets** | `.env.prod` (git-ignored), compose `:?` = missing secret pe start hi nahi | Fail closed (Phase 7 ke saath) |
 | **Environments** | `deploy/env/{staging,prod}.env.example` | Har release pehle staging pe, alag secrets |
-| **Backups** | `pg_dump` daily (7 din) + `python -m faceai.ops.backup` (SQLite online backup + integrity check) | Restore = asli test; retention = purana deleted data bhi expire |
+| **Backups** | `backup` service: `pg_dump` daily · `biobackup` service: biometric SQLite online backup + integrity check daily · dono 7 din retention | Restore = asli test; retention = purana deleted data bhi expire |
 | **Caching** | `/assets/*` 1 year immutable, `index.html`/`sw.js` no-cache | Naya deploy turant dikhe, assets dobara download na hon |
 
 ## 3. Ek bug jo Windows ne pakda

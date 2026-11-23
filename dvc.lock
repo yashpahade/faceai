@@ -33,8 +33,8 @@ stages:
       size: 3183
     - path: src/faceai/vision
       hash: md5
-      md5: 7ed1f28df4123736275a6f808ce525f8.dir
-      size: 50992
+      md5: 641f4a85b117f138bb5cf4a4e123e9a1.dir
+      size: 51838
       nfiles: 16
     params:
       params.yaml:
@@ -43,16 +43,16 @@ stages:
     outs:
     - path: data/eval/lfw_embeddings.npz
       hash: md5
-      md5: 0814dece7fda6d90b2cf6e603c8b22f0
-      size: 14718332
+      md5: 996f0ad64dc76bc99c9741f3d55d2603
+      size: 14718331
   evaluate_lfw:
     cmd: python -m faceai.eval.evaluate --emb data/eval/lfw_embeddings.npz --out
       reports/eval
     deps:
     - path: data/eval/lfw_embeddings.npz
       hash: md5
-      md5: 0814dece7fda6d90b2cf6e603c8b22f0
-      size: 14718332
+      md5: 996f0ad64dc76bc99c9741f3d55d2603
+      size: 14718331
     - path: src/faceai/eval/evaluate.py
       hash: md5
       md5: b64cd55a09f42dd6ef9a399619812483
@@ -75,8 +75,8 @@ stages:
       size: 2806
     - path: reports/eval/metrics.json
       hash: md5
-      md5: 1bc06789eb99ba727a90e72dca412230
-      size: 679
+      md5: b073b8d52846f02027576f54cbc4dcf8
+      size: 678
     - path: reports/eval/roc.csv
       hash: md5
       md5: a3a3d76db8e0a5102afbe7dc8180c468

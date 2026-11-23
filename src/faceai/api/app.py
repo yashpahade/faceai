@@ -27,6 +27,8 @@ from faceai.logging import request_id_ctx, setup_logging
 from faceai.models.card import load_card
 from faceai.monitoring import metrics as m
 from faceai.monitoring.drift import DriftMonitor
+from faceai.security.crypto import Cipher, parse_keys
+from faceai.security.liveness import LivenessChecker
 from faceai.service import RecognitionService
 from faceai.serving.batcher import MicroBatcher
 from faceai.serving.limiter import ConcurrencyLimiter
@@ -72,8 +74,22 @@ def _setup_batching(engine: FaceEngineProtocol, settings: Settings) -> MicroBatc
     return batcher
 
 
+def check_security_config(settings: Settings, liveness: LivenessChecker | None) -> list[str]:
+    """Fail closed: galat/missing security config => app ready NAHI hogi (Phase 7)."""
+    problems = []
+    if settings.env == "prod" and not settings.encryption_keys:
+        problems.append("prod requires FACEAI_ENCRYPTION_KEYS (embeddings at rest)")
+    if settings.auth_required and not settings.api_key_hash_list:
+        problems.append("auth required but FACEAI_API_KEY_HASHES is empty")
+    if settings.liveness == "required" and liveness is None:
+        problems.append("FACEAI_LIVENESS=required but no liveness checker is configured")
+    return problems
+
+
 def create_app(
-    settings: Settings | None = None, engine: FaceEngineProtocol | None = None
+    settings: Settings | None = None,
+    engine: FaceEngineProtocol | None = None,
+    liveness: LivenessChecker | None = None,
 ) -> FastAPI:
     """`engine` inject kar sakte ho (tests mein fake engine).
 
@@ -100,8 +116,20 @@ def create_app(
             reference_size=settings.drift_reference_size,
             window_size=settings.drift_window_size,
         )
-        db = Database(settings.db_path)
+        db = None
         try:
+            problems = check_security_config(settings, liveness)
+            if problems:
+                raise RuntimeError("insecure configuration: " + "; ".join(problems))
+            keys = settings.encryption_keys
+            cipher = Cipher(parse_keys(keys)) if keys else None
+            db = Database(settings.db_path, cipher=cipher)
+            if cipher and (n := db.count_unencrypted()):
+                logger.warning(
+                    "%d plaintext embeddings; run `python -m faceai.security.migrate`", n
+                )
+            if cipher is None:
+                logger.warning("embeddings are stored UNENCRYPTED (set FACEAI_ENCRYPTION_KEYS)")
             t0 = time.perf_counter()
             eng = engine or _build_engine(settings)
             app.state.batcher = _setup_batching(eng, settings)
@@ -109,18 +137,21 @@ def create_app(
             app.state.model_card = (
                 None if engine else load_card(settings.models_dir / settings.model_pack)
             )
-            app.state.service = RecognitionService(eng, db, settings)
+            app.state.service = RecognitionService(eng, db, settings, liveness=liveness)
+            if settings.retention_days:
+                app.state.service.purge_expired(settings.retention_days)
             app.state.ready = True
             logger.info(
                 "model ready: %s on %s (%.1fs)", eng.model_id, eng.device, time.perf_counter() - t0
             )
         except Exception:
             # App zinda rahe (liveness OK) par ready nahi -> load balancer traffic nahi bhejega
-            logger.exception("model load failed; service NOT ready")
+            logger.exception("startup failed; service NOT ready")
         yield
         if app.state.batcher:
             app.state.batcher.close()
-        db.close()
+        if db is not None:
+            db.close()
         logger.info("shutting down")
 
     app = FastAPI(title="FaceAI", version=__version__, lifespan=lifespan)

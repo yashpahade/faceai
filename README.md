@@ -11,7 +11,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 4 | Serving: batching, performance | ✅ done |
 | 5 | CI/CD with eval gate: GitHub Actions | ✅ done |
 | 6 | Monitoring + drift: Prometheus, Grafana | ✅ done |
-| 7 | Trust & safety: liveness, encryption, data deletion | |
+| 7 | Trust & safety: liveness, encryption, data deletion | ✅ done |
 
 Learning notes per phase: [`docs/`](docs/). Old code for reference: [`legacy/`](legacy/).
 
@@ -31,6 +31,7 @@ src/faceai/
   models/card.py    # model_card.json reader (serving knows which registered version it runs)
   serving/          # embedding micro-batcher, admission control (503 + Retry-After)
   monitoring/       # Prometheus metrics (/metrics), drift detection (PSI)
+  security/         # AES-GCM embedding encryption, API keys, liveness interface, retention
 deploy/             # Prometheus config + alert rules, Grafana datasource + dashboard
 tests/              # pytest
 legacy/             # pre-refactor code (read-only reference)
@@ -122,12 +123,22 @@ Monitoring and drift detection: [`docs/phase-6-monitoring.md`](docs/phase-6-moni
 | GET | `/health/ready` | Readiness: are models loaded? 503 if not |
 | GET | `/version` | App version, model id + registry version, device |
 | GET | `/metrics` | Prometheus metrics (keep internal) |
-| POST | `/v1/persons` | Create person `{"name": "..."}` |
+| POST | `/v1/persons` | Create person `{"name": "...", "consent": true}` (consent required) |
 | GET | `/v1/persons` | List persons |
-| GET / DELETE | `/v1/persons/{id}` | Get / delete person (+ all embeddings) |
+| GET / DELETE | `/v1/persons/{id}` | Get / delete person (+ all embeddings); delete returns a receipt |
 | POST | `/v1/persons/{id}/faces` | Enroll a face photo (exactly one face, quality-checked) |
 | POST | `/v1/recognize` | Identify all faces in a photo |
+| GET | `/v1/audit?person_id=` | Audit trail (who did what, no biometrics or names) |
 
 > Models: InsightFace `buffalo_l`, **non-commercial research use only**.
 
 Every response has an `X-Request-ID` header. Send your own to trace a request through the logs.
+
+## Security (Phase 7)
+
+- `/v1/*` needs `X-API-Key` when auth is on (`FACEAI_AUTH=auto` = on in prod). Generate: `python -m faceai.security.auth`
+- Embeddings are AES-256-GCM encrypted at rest (`FACEAI_ENCRYPTION_KEYS`); encrypt old rows / rotate keys: `python -m faceai.security.migrate`
+- `FACEAI_ENV=prod` refuses to become ready without encryption keys and API keys (fail closed)
+- Photos are never stored; deletion removes DB rows + index entries (`secure_delete`), audit keeps proof
+- Retention: `FACEAI_RETENTION_DAYS` or `python -m faceai.security.retention --days N`
+- Liveness: interface only, **no anti-spoofing model is shipped**; see [`docs/phase-7-trust-safety.md`](docs/phase-7-trust-safety.md)

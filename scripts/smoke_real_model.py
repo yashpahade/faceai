@@ -65,7 +65,7 @@ def main() -> int:
         # enroll each face as its own person (ids sorted left -> right)
         people = []
         for i, f in enumerate(sorted(faces, key=lambda f: center_x(f.bbox))):
-            p = svc.create_person(f"person_{i}")
+            p = svc.create_person(f"person_{i}", consent=True)
             try:
                 svc.enroll_face(p.id, crop_with_margin(img, f.bbox))
                 people.append((p, center_x(f.bbox)))

@@ -2,8 +2,10 @@
 # Regenerate: pip freeze --exclude-editable, minus dev/gpu/windows-only packages
 annotated-types==0.8.0
 anyio==4.16.0
+cffi==2.1.1
 click==8.5.1
 coloredlogs==15.0.1
+cryptography==50.0.2
 faiss-cpu==1.11.0
 fastapi==0.115.6
 flatbuffers==25.12.19
@@ -17,6 +19,7 @@ opencv-python-headless==4.11.0.86
 packaging==26.3
 prometheus-client==0.23.1
 protobuf==7.36.2
+pycparser==3.12
 pydantic-settings==2.7.0
 pydantic==2.10.4
 pydantic_core==2.27.2

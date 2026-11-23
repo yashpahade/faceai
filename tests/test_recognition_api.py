@@ -16,7 +16,7 @@ def _png(value: int, width: int = 200) -> dict:
 
 @pytest.fixture
 def person(client) -> dict:
-    r = client.post("/v1/persons", json={"name": "Omkar"})
+    r = client.post("/v1/persons", json={"name": "Omkar", "consent": True})
     assert r.status_code == 201
     return r.json()
 
@@ -40,7 +40,7 @@ def test_full_flow(client, person):
     assert client.get(f"/v1/persons/{pid}").json()["num_faces"] == 1
 
     # delete -> ab recognize nahi hona chahiye (right to be forgotten)
-    assert client.delete(f"/v1/persons/{pid}").status_code == 204
+    assert client.delete(f"/v1/persons/{pid}").json() == {"person_id": pid, "deleted_embeddings": 1}
     r = client.post("/v1/recognize", files=_png(42)).json()
     assert r["faces"][0]["match"] is None
     assert client.get(f"/v1/persons/{pid}").status_code == 404
@@ -80,7 +80,7 @@ def test_recognize_rejects_oversized(client):
 
 
 def test_create_person_validates_name(client):
-    assert client.post("/v1/persons", json={"name": ""}).status_code == 422
+    assert client.post("/v1/persons", json={"name": "", "consent": True}).status_code == 422
 
 
 def test_not_ready_when_model_missing(settings, tmp_path):

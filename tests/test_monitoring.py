@@ -64,7 +64,7 @@ def test_drift_monitor_reference_then_detects_shift(tmp_path):
 
 # ---------- /metrics ----------
 def test_metrics_endpoint_exposes_red_and_model_metrics(client):
-    pid = client.post("/v1/persons", json={"name": "A"}).json()["id"]
+    pid = client.post("/v1/persons", json={"name": "A", "consent": True}).json()["id"]
     client.post(f"/v1/persons/{pid}/faces", files=_png(42))
     before = client.get("/metrics").text
     client.post("/v1/recognize", files=_png(42))  # match

@@ -13,14 +13,38 @@ from dataclasses import asdict
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 
-from faceai.api.schemas import EnrollOut, PersonCreate, PersonOut, RecognizeOut
+from faceai.api.schemas import (
+    AuditOut,
+    DeleteOut,
+    EnrollOut,
+    PersonCreate,
+    PersonOut,
+    RecognizeOut,
+)
 from faceai.monitoring import metrics as m
+from faceai.security import auth
 from faceai.service import EnrollmentError, NotFoundError, RecognitionService
 from faceai.serving.limiter import OverloadedError
 
-router = APIRouter(prefix="/v1")
+
+def require_api_key(request: Request) -> str:
+    """Har /v1 call pe check. Valid key => `request.state.actor` (audit ke liye)."""
+    s = request.app.state.settings
+    if not s.auth_required:
+        request.state.actor = "anonymous"
+        return request.state.actor
+    actor = auth.verify(request.headers.get("X-API-Key"), s.api_key_hash_list)
+    if actor is None:
+        raise HTTPException(
+            401, "invalid or missing API key", headers={"WWW-Authenticate": "ApiKey"}
+        )
+    request.state.actor = actor
+    return actor
+
+
+router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
 
 
 def get_service(request: Request) -> RecognitionService:
@@ -74,8 +98,10 @@ def inference_slot(request: Request):
 
 
 @router.post("/persons", response_model=PersonOut, status_code=201, tags=["persons"])
-def create_person(body: PersonCreate, svc: RecognitionService = Depends(get_service)):
-    return asdict(svc.create_person(body.name.strip()))
+def create_person(
+    body: PersonCreate, request: Request, svc: RecognitionService = Depends(get_service)
+):
+    return asdict(svc.create_person(body.name.strip(), body.consent, request.state.actor))
 
 
 @router.get("/persons", response_model=list[PersonOut], tags=["persons"])
@@ -91,13 +117,23 @@ def get_person(person_id: str, svc: RecognitionService = Depends(get_service)):
         raise HTTPException(404, "person not found") from None
 
 
-@router.delete("/persons/{person_id}", status_code=204, tags=["persons"])
-def delete_person(person_id: str, svc: RecognitionService = Depends(get_service)):
+@router.delete("/persons/{person_id}", response_model=DeleteOut, tags=["persons"])
+def delete_person(person_id: str, request: Request, svc: RecognitionService = Depends(get_service)):
+    """Right to be forgotten: DB + index se hatao, receipt lauto, audit mein proof."""
     try:
-        svc.delete_person(person_id)
+        n = svc.delete_person(person_id, request.state.actor)
     except NotFoundError:
         raise HTTPException(404, "person not found") from None
-    return Response(status_code=204)
+    return {"person_id": person_id, "deleted_embeddings": n}
+
+
+@router.get("/audit", response_model=list[AuditOut], tags=["audit"])
+def audit_log(
+    person_id: str | None = None,
+    limit: int = Query(100, ge=1, le=1000),
+    svc: RecognitionService = Depends(get_service),
+):
+    return svc.db.list_audit(person_id, limit)
 
 
 @router.post(
@@ -112,7 +148,7 @@ def enroll_face(
     img = read_image(request, file)
     try:
         with inference_slot(request):
-            emb_id, quality = svc.enroll_face(person_id, img)
+            emb_id, quality = svc.enroll_face(person_id, img, request.state.actor)
     except NotFoundError:
         raise HTTPException(404, "person not found") from None
     except EnrollmentError as e:

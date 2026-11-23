@@ -21,12 +21,13 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from faceai import __version__
-from faceai.api.routes import router
+from faceai.api.routes import public_router, router
 from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
 from faceai.models.card import load_card
 from faceai.monitoring import metrics as m
 from faceai.monitoring.drift import DriftMonitor
+from faceai.security.challenge import ChallengeStore
 from faceai.security.crypto import Cipher, parse_keys
 from faceai.security.liveness import LivenessChecker
 from faceai.service import RecognitionService
@@ -47,6 +48,9 @@ def _build_engine(settings: Settings) -> FaceEngineProtocol:
         settings.det_size,
         settings.device,
         settings.ort_intra_op_threads,
+        extra_det_sizes=tuple(settings.det_extra_sizes),
+        clahe=settings.clahe,
+        flip_tta=settings.flip_tta,
     )
     engine.warmup()
     return engine
@@ -106,6 +110,7 @@ def create_app(
         app.state.model_card = None
         app.state.ready = False
         app.state.batcher = None
+        app.state.challenges = ChallengeStore()  # active liveness (Phase A)
         # Admission control (Phase 4): capacity se zyada => turant 503, sabko slow nahi
         app.state.limiter = ConcurrencyLimiter(
             settings.max_concurrent_inference, settings.max_queue_wait_ms
@@ -156,6 +161,7 @@ def create_app(
 
     app = FastAPI(title="FaceAI", version=__version__, lifespan=lifespan)
     app.include_router(router)
+    app.include_router(public_router)
 
     @app.middleware("http")
     async def request_context(request: Request, call_next) -> Response:

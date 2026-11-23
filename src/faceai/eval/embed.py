@@ -46,7 +46,15 @@ def main() -> None:
     p = load_params()["eval"]
 
     s = Settings(_env_file=None)
-    engine = FaceEngine(s.models_dir, s.model_pack, p["det_size"], s.device)
+    engine = FaceEngine(
+        s.models_dir,
+        s.model_pack,
+        p["det_size"],
+        s.device,
+        extra_det_sizes=tuple(p.get("det_extra_sizes", [])),
+        clahe=p.get("clahe", False),
+        flip_tta=p.get("flip_tta", False),
+    )
     engine.warmup()
 
     pairs = load_pairs(args.lfw)

@@ -72,6 +72,12 @@ ENROLLMENTS = Counter(
     ["result"],  # ok | rejected
     registry=REGISTRY,
 )
+LIVENESS_CHECKS = Counter(
+    "faceai_liveness_checks_total",
+    "Active liveness challenge results",
+    ["result"],  # pass | fail
+    registry=REGISTRY,
+)
 REJECTED = Counter(
     "faceai_overload_rejections_total",
     "Requests rejected by admission control (503)",

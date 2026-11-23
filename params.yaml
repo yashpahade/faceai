@@ -4,6 +4,9 @@
 eval:
   det_size: 640          # detector input size
   det_threshold: 0.5
+  det_extra_sizes: []   # Phase A: multi-scale, e.g. [1280]
+  clahe: false          # Phase A: contrast enhancement before detection
+  flip_tta: false       # Phase A: embed face + mirror, average
   target_fars: [0.0001, 0.001, 0.01]
   operating_far: 0.001   # production operating point -> recommended threshold
 

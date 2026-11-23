@@ -13,20 +13,34 @@ from dataclasses import asdict
 
 import cv2
 import numpy as np
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
+)
 
 from faceai.api.schemas import (
     AuditOut,
+    ChallengeOut,
     DeleteOut,
     EnrollOut,
+    LivenessVerifyOut,
     PersonCreate,
     PersonOut,
     RecognizeOut,
 )
 from faceai.monitoring import metrics as m
 from faceai.security import auth
+from faceai.security.challenge import CHALLENGE_TTL_S, TOKEN_TTL_S
 from faceai.service import EnrollmentError, NotFoundError, RecognitionService
 from faceai.serving.limiter import OverloadedError
+from faceai.vision.preprocess import decode_image
 
 
 def require_api_key(request: Request) -> str:
@@ -45,6 +59,8 @@ def require_api_key(request: Request) -> str:
 
 
 router = APIRouter(prefix="/v1", dependencies=[Depends(require_api_key)])
+# Bina login ke chahiye (face login se PEHLE liveness hota hai). Abuse se rate limit bachata hai.
+public_router = APIRouter(prefix="/v1")
 
 
 def get_service(request: Request) -> RecognitionService:
@@ -59,7 +75,7 @@ def read_image(request: Request, file: UploadFile) -> np.ndarray:
     data = file.file.read(limit + 1)
     if len(data) > limit:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "image too large")
-    img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    img = decode_image(data)  # EXIF orientation applied (phone photos)
     if img is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "could not decode image (jpg/png?)")
     return img
@@ -177,3 +193,27 @@ def recognize(
         "model_id": svc.engine.model_id,
         "timings_ms": res.timings_ms,
     }
+
+
+# ---------- Active liveness (Phase A) ----------
+@public_router.post("/liveness/challenge", response_model=ChallengeOut, tags=["liveness"])
+def liveness_challenge(request: Request):
+    """Random head-movement steps. Har step ke liye ek frame bhejo /liveness/verify pe."""
+    c = request.app.state.challenges.create()
+    return {"challenge_id": c.id, "steps": c.steps, "expires_in_s": CHALLENGE_TTL_S}
+
+
+@public_router.post("/liveness/verify", response_model=LivenessVerifyOut, tags=["liveness"])
+def liveness_verify(
+    request: Request,
+    challenge_id: str = Form(...),
+    frames: list[UploadFile] = File(..., description="steps ke order mein, ek frame per step"),
+    svc: RecognitionService = Depends(get_service),
+):
+    if len(frames) > 5:
+        raise HTTPException(422, "too many frames")
+    with inference_slot(request):
+        faces = [svc.engine.analyze(read_image(request, f), svc.s.det_threshold) for f in frames]
+    r = request.app.state.challenges.verify(challenge_id, faces)
+    m.LIVENESS_CHECKS.labels("pass" if r.live else "fail").inc()
+    return {"live": r.live, "reason": r.reason, "token": r.token, "token_ttl_s": TOKEN_TTL_S}

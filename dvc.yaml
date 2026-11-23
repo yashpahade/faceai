@@ -18,6 +18,9 @@ stages:
     params:
       - eval.det_size
       - eval.det_threshold
+      - eval.det_extra_sizes
+      - eval.clahe
+      - eval.flip_tta
     outs:
       - data/eval/lfw_embeddings.npz
 

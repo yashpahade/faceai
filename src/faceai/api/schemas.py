@@ -78,3 +78,16 @@ class RecognizeOut(BaseModel):
     threshold: float
     model_id: str
     timings_ms: dict[str, float]
+
+
+class ChallengeOut(BaseModel):
+    challenge_id: str
+    steps: list[str] = Field(description="turn_left / turn_right / center (image coordinates)")
+    expires_in_s: int
+
+
+class LivenessVerifyOut(BaseModel):
+    live: bool
+    reason: str
+    token: str | None = Field(description="single-use liveness token (face login/attendance)")
+    token_ttl_s: int

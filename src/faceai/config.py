@@ -61,7 +61,9 @@ class Settings(BaseSettings):
 
     # --- Enrollment quality gates ---
     enroll_min_det_score: float = Field(default=0.6, ge=0.0, le=1.0)
-    enroll_min_face_px: int = Field(default=60, ge=16, description="bbox ki chhoti side (pixels)")
+    enroll_min_face_px: int = Field(
+        default=80, ge=16, description="bbox ki chhoti side (pixels); Phase A: 60 -> 80"
+    )
     enroll_min_sharpness: float = Field(default=40.0, ge=0.0, description="Laplacian variance")
 
     # --- Serving performance (Phase 4) ---
@@ -80,6 +82,13 @@ class Settings(BaseSettings):
     ort_intra_op_threads: int = Field(
         default=0, ge=0, description="CPU threads per ONNX session; 0 = ORT default (all cores)"
     )
+
+    # --- Accuracy options (Phase A) - reports/experiments/phase_a.json ke results se defaults ---
+    det_extra_sizes: list[int] = Field(
+        default=[], description="multi-scale: det_size ke saath ye sizes bhi (e.g. [1280])"
+    )
+    clahe: bool = Field(default=False, description="detection se pehle CLAHE contrast fix")
+    flip_tta: bool = Field(default=False, description="face + mirror embed karke average")
 
     # --- Monitoring (Phase 6) ---
     drift_reference_size: int = Field(default=500, ge=50, description="reference window (faces)")

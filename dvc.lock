@@ -1,0 +1,87 @@
+schema: '2.0'
+stages:
+  download_lfw:
+    cmd: python -m faceai.eval.lfw --out data/lfw
+    deps:
+    - path: src/faceai/eval/lfw.py
+      hash: md5
+      md5: e4b66c10180bfab2ef7a865ac6c3a744
+      size: 3746
+    outs:
+    - path: data/lfw
+      hash: md5
+      md5: b267972b8317bcb3c26322c5e859ff88.dir
+      size: 188507861
+      nfiles: 13234
+  embed_lfw:
+    cmd: python -m faceai.eval.embed --lfw data/lfw --out 
+      data/eval/lfw_embeddings.npz
+    deps:
+    - path: data/lfw
+      hash: md5
+      md5: b267972b8317bcb3c26322c5e859ff88.dir
+      size: 188507861
+      nfiles: 13234
+    - path: models/buffalo_l
+      hash: md5
+      md5: 9bc97f5c92f669186bb1be37b187c9ae.dir
+      size: 191307687
+      nfiles: 2
+    - path: src/faceai/eval/embed.py
+      hash: md5
+      md5: 16e789be55e5e320938d03317bad873e
+      size: 3282
+    - path: src/faceai/vision
+      hash: md5
+      md5: 39664660f88ebe875726c5e459057fe6.dir
+      size: 50992
+      nfiles: 16
+    params:
+      params.yaml:
+        eval.det_size: 640
+        eval.det_threshold: 0.5
+    outs:
+    - path: data/eval/lfw_embeddings.npz
+      hash: md5
+      md5: 0814dece7fda6d90b2cf6e603c8b22f0
+      size: 14718332
+  evaluate_lfw:
+    cmd: python -m faceai.eval.evaluate --emb data/eval/lfw_embeddings.npz --out
+      reports/eval
+    deps:
+    - path: data/eval/lfw_embeddings.npz
+      hash: md5
+      md5: 0814dece7fda6d90b2cf6e603c8b22f0
+      size: 14718332
+    - path: src/faceai/eval/evaluate.py
+      hash: md5
+      md5: edb91f8e21cf796ef4f9cda6744736e7
+      size: 4723
+    - path: src/faceai/eval/metrics.py
+      hash: md5
+      md5: 930728dc35b256e8e45baba49691eb60
+      size: 3795
+    params:
+      params.yaml:
+        eval.operating_far: 0.001
+        eval.target_fars:
+        - 0.0001
+        - 0.001
+        - 0.01
+    outs:
+    - path: reports/eval/errors.json
+      hash: md5
+      md5: 45c6a328eb549ea29f5aa839df46e542
+      size: 2902
+    - path: reports/eval/metrics.json
+      hash: md5
+      md5: b65f34512b507c0c5b164154d96482df
+      size: 711
+    - path: reports/eval/roc.csv
+      hash: md5
+      md5: 71d326abe2e982cb5faae7ee76eab8b7
+      size: 10513
+    - path: reports/eval/scores.csv
+      hash: md5
+      md5: f19eab2a8383bdd7b22ee1eaf359b236
+      size: 823

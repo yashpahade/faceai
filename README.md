@@ -6,7 +6,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 |---|---|---|
 | 0 | Foundation: git, packaging, config, logging, tests, Docker | ✅ done |
 | 1 | Core pipeline: aligned ArcFace embeddings, GPU, vector index | ✅ done |
-| 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | |
+| 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | ✅ done |
 | 3 | Experiment tracking + model registry: MLflow | |
 | 4 | Serving: batching, performance | |
 | 5 | CI/CD with eval gate: GitHub Actions | |
@@ -26,8 +26,12 @@ src/faceai/
   vision/           # SCRFD detector, alignment, ArcFace embedder, quality gates
   store/            # SQLite (source of truth) + FAISS index (cache)
   models/download.py# model artifact download + SHA-256 verification
+  eval/             # LFW benchmark, metrics (ROC/TAR@FAR/EER), quality gate
 tests/              # pytest
 legacy/             # pre-refactor code (read-only reference)
+dvc.yaml, dvc.lock # evaluation pipeline + exact record of its inputs/outputs
+params.yaml        # eval params + quality-gate thresholds
+reports/eval/      # metrics.json, ROC, score histograms, error analysis
 pyproject.toml      # deps + tool config
 requirements.lock   # exact pinned runtime versions (used by Docker)
 ```
@@ -43,6 +47,17 @@ copy .env.example .env                              # config (once)
 .venv\Scripts\python -m faceai                     # run server -> http://127.0.0.1:8000/docs
 .venv\Scripts\python -m pytest --cov=faceai        # tests + coverage
 .venv\Scripts\python -m ruff check . ; .venv\Scripts\python -m ruff format .   # lint + format
+```
+
+## Model evaluation (DVC pipeline)
+
+```powershell
+.venv\Scripts\python -m pip install -e ".[eval]"
+$env:PATH = "$PWD\.venv\Scripts;$env:PATH"   # so DVC stages find the venv python
+python -m dvc repro                  # download LFW -> embed -> evaluate (only changed stages rerun)
+python -m dvc metrics show           # headline numbers
+python -m dvc plots show             # ROC + score histogram -> dvc_plots/index.html
+python -m faceai.eval.gate           # fails (exit 1) if model quality is below params.yaml gate
 ```
 
 ## Docker

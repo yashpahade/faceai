@@ -1,0 +1,34 @@
+{
+  "model_id": "buffalo_l/w600k_r50",
+  "dataset": "lfw-6000-pairs",
+  "n_pairs": 6000,
+  "failure_to_detect_rate": 0.00143,
+  "pairs_with_failure": 17,
+  "kfold_accuracy": 0.99633,
+  "kfold_accuracy_std": 0.00277,
+  "auc": 0.995724,
+  "eer": 0.006,
+  "eer_threshold": 0.1522,
+  "kfold_threshold_mean": 0.2489,
+  "tar_at_far": {
+    "1e-4": {
+      "tar": 0.99333,
+      "threshold": 0.253
+    },
+    "1e-3": {
+      "tar": 0.99333,
+      "threshold": 0.253
+    },
+    "1e-2": {
+      "tar": 0.994,
+      "threshold": 0.1658
+    }
+  },
+  "ms_per_image": 124.97,
+  "device": "cuda",
+  "recommended_threshold": {
+    "far": 0.001,
+    "threshold": 0.253,
+    "tar": 0.99333
+  }
+}

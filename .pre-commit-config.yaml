@@ -12,12 +12,14 @@ repos:
         additional_dependencies: [pre-commit-hooks==5.0.0]
         entry: python -m pre_commit_hooks.trailing_whitespace_fixer
         types: [text]
+        exclude: ^(dvc\.lock|reports/)  # DVC-generated; editing breaks recorded hashes
       - id: end-of-file-fixer
         name: fix end of files
         language: python
         additional_dependencies: [pre-commit-hooks==5.0.0]
         entry: python -m pre_commit_hooks.end_of_file_fixer
         types: [text]
+        exclude: ^(dvc\.lock|reports/)  # DVC-generated; editing breaks recorded hashes
       - id: check-yaml
         name: check yaml
         language: python

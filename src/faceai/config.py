@@ -111,6 +111,26 @@ class Settings(BaseSettings):
         default=None, ge=1, description="isse purani embeddings startup pe purge"
     )
 
+    # --- Product: attendance SaaS (Phase B) ---
+    product_db_url: str = Field(
+        default=f"sqlite:///{(PROJECT_ROOT / 'data' / 'faceai_app.db').as_posix()}",
+        description="users/batches/attendance DB; prod: postgresql+psycopg://...",
+    )
+    jwt_secret: str | None = Field(
+        default=None, repr=False, description="HS256 secret (32+ chars); prod mein zaroori"
+    )
+    jwt_ttl_minutes: int = Field(default=720, ge=5, le=43200)
+    timezone: str = Field(default="Asia/Kolkata", description="attendance days/times isi zone mein")
+    face_login_threshold: float = Field(
+        default=0.5,
+        ge=-1.0,
+        le=1.0,
+        description="face login ke liye min similarity (recognize threshold se STRICT rakho)",
+    )
+    face_login_margin: float = Field(
+        default=0.05, ge=0.0, le=1.0, description="top-1 aur top-2 mein min farak (ambiguous => no)"
+    )
+
     @property
     def auth_required(self) -> bool:
         return self.auth == "required" or (self.auth == "auto" and self.env == "prod")

@@ -9,7 +9,12 @@ from tests.fakes import FakeEngine
 @pytest.fixture
 def settings(tmp_path) -> Settings:
     # tmp_path: har test ka apna temporary folder -> asli data/ kabhi touch nahi hota
-    return Settings(env="test", data_dir=tmp_path, _env_file=None)
+    return Settings(
+        env="test",
+        data_dir=tmp_path,
+        product_db_url=f"sqlite:///{(tmp_path / 'app.db').as_posix()}",
+        _env_file=None,
+    )
 
 
 @pytest.fixture

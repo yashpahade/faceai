@@ -11,6 +11,7 @@ Concepts:
 """
 
 import logging
+import secrets
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -22,6 +23,9 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from faceai import __version__
 from faceai.api.routes import public_router, router
+from faceai.attendance.models import create_all, make_engine, make_sessionmaker
+from faceai.attendance.routes import router as attendance_router
+from faceai.attendance.service import AttendanceService
 from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
 from faceai.models.card import load_card
@@ -78,6 +82,18 @@ def _setup_batching(engine: FaceEngineProtocol, settings: Settings) -> MicroBatc
     return batcher
 
 
+def _build_attendance(settings: Settings, bio: RecognitionService) -> AttendanceService:
+    """Product layer (Phase B): users/batches/attendance DB + JWT."""
+    engine = make_engine(settings.product_db_url)
+    create_all(engine)  # dev/test; prod mein Alembic (Phase E)
+    secret = settings.jwt_secret
+    if not secret:
+        # Dev convenience: har restart pe naya secret -> purane tokens invalid. Prod mein mana hai.
+        secret = secrets.token_urlsafe(32)
+        logger.warning("FACEAI_JWT_SECRET not set; using an ephemeral dev secret")
+    return AttendanceService(make_sessionmaker(engine), bio, settings, secret)
+
+
 def check_security_config(settings: Settings, liveness: LivenessChecker | None) -> list[str]:
     """Fail closed: galat/missing security config => app ready NAHI hogi (Phase 7)."""
     problems = []
@@ -85,6 +101,8 @@ def check_security_config(settings: Settings, liveness: LivenessChecker | None) 
         problems.append("prod requires FACEAI_ENCRYPTION_KEYS (embeddings at rest)")
     if settings.auth_required and not settings.api_key_hash_list:
         problems.append("auth required but FACEAI_API_KEY_HASHES is empty")
+    if settings.env == "prod" and len(settings.jwt_secret or "") < 32:
+        problems.append("prod requires FACEAI_JWT_SECRET (32+ chars)")
     if settings.liveness == "required" and liveness is None:
         problems.append("FACEAI_LIVENESS=required but no liveness checker is configured")
     return problems
@@ -110,6 +128,7 @@ def create_app(
         app.state.model_card = None
         app.state.ready = False
         app.state.batcher = None
+        app.state.attendance = None
         app.state.challenges = ChallengeStore()  # active liveness (Phase A)
         # Admission control (Phase 4): capacity se zyada => turant 503, sabko slow nahi
         app.state.limiter = ConcurrencyLimiter(
@@ -145,6 +164,7 @@ def create_app(
             app.state.service = RecognitionService(eng, db, settings, liveness=liveness)
             if settings.retention_days:
                 app.state.service.purge_expired(settings.retention_days)
+            app.state.attendance = _build_attendance(settings, app.state.service)
             app.state.ready = True
             logger.info(
                 "model ready: %s on %s (%.1fs)", eng.model_id, eng.device, time.perf_counter() - t0
@@ -162,6 +182,7 @@ def create_app(
     app = FastAPI(title="FaceAI", version=__version__, lifespan=lifespan)
     app.include_router(router)
     app.include_router(public_router)
+    app.include_router(attendance_router)
 
     @app.middleware("http")
     async def request_context(request: Request, call_next) -> Response:

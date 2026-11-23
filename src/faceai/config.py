@@ -64,6 +64,23 @@ class Settings(BaseSettings):
     enroll_min_face_px: int = Field(default=60, ge=16, description="bbox ki chhoti side (pixels)")
     enroll_min_sharpness: float = Field(default=40.0, ge=0.0, description="Laplacian variance")
 
+    # --- Serving performance (Phase 4) ---
+    batching: Literal["auto", "on", "off"] = Field(
+        default="off",
+        description="cross-request embedding micro-batching; auto = sirf GPU pe. Default off: "
+        "RTX 3050 laptop pe load test mein throughput nahi badha (docs/phase-4-serving.md)",
+    )
+    # GPU benchmark: per-face 10.6 ms (b=1) -> 4.4 ms (b=16) -> 4.9 ms (b=32). 16 sweet spot.
+    batch_max_size: int = Field(default=16, ge=1, le=256)
+    batch_max_wait_ms: float = Field(default=3.0, ge=0.0, le=100.0)
+    max_concurrent_inference: int = Field(
+        default=4, ge=1, description="ek saath kitni requests inference karein; baaki wait/503"
+    )
+    max_queue_wait_ms: float = Field(default=2000.0, ge=0.0, description="slot ka max intezaar")
+    ort_intra_op_threads: int = Field(
+        default=0, ge=0, description="CPU threads per ONNX session; 0 = ORT default (all cores)"
+    )
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "faceai.db"

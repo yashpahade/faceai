@@ -8,6 +8,7 @@ Endpoints `def` hain (`async def` nahi): ML inference CPU/GPU-bound blocking kaa
 `def` endpoints ko threadpool mein chalata hai, isliye event loop block nahi hota.
 """
 
+from contextlib import contextmanager
 from dataclasses import asdict
 
 import cv2
@@ -16,6 +17,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, 
 
 from faceai.api.schemas import EnrollOut, PersonCreate, PersonOut, RecognizeOut
 from faceai.service import EnrollmentError, NotFoundError, RecognitionService
+from faceai.serving.limiter import OverloadedError
 
 router = APIRouter(prefix="/v1")
 
@@ -36,6 +38,18 @@ def read_image(request: Request, file: UploadFile) -> np.ndarray:
     if img is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "could not decode image (jpg/png?)")
     return img
+
+
+@contextmanager
+def inference_slot(request: Request):
+    """Admission control: slot nahi mila => 503 + Retry-After (client ko pata ho kab retry kare)."""
+    try:
+        with request.app.state.limiter.slot():
+            yield
+    except OverloadedError:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "server busy", headers={"Retry-After": "1"}
+        ) from None
 
 
 @router.post("/persons", response_model=PersonOut, status_code=201, tags=["persons"])
@@ -76,7 +90,8 @@ def enroll_face(
 ):
     img = read_image(request, file)
     try:
-        emb_id, quality = svc.enroll_face(person_id, img)
+        with inference_slot(request):
+            emb_id, quality = svc.enroll_face(person_id, img)
     except NotFoundError:
         raise HTTPException(404, "person not found") from None
     except EnrollmentError as e:
@@ -94,7 +109,8 @@ def recognize(
     svc: RecognitionService = Depends(get_service),
 ):
     img = read_image(request, file)
-    res = svc.recognize(img)
+    with inference_slot(request):
+        res = svc.recognize(img)
     return {
         "faces": [asdict(f) for f in res.faces],
         "threshold": svc.s.match_threshold,

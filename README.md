@@ -8,7 +8,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 1 | Core pipeline: aligned ArcFace embeddings, GPU, vector index | ✅ done |
 | 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | ✅ done |
 | 3 | Experiment tracking + model registry: MLflow | ✅ done |
-| 4 | Serving: batching, performance | |
+| 4 | Serving: batching, performance | ✅ done |
 | 5 | CI/CD with eval gate: GitHub Actions | |
 | 6 | Monitoring + drift: Prometheus, Grafana | |
 | 7 | Trust & safety: liveness, encryption, data deletion | |
@@ -29,6 +29,7 @@ src/faceai/
   eval/             # LFW benchmark, metrics (ROC/TAR@FAR/EER), quality gate
   registry.py       # MLflow: log eval runs, model versions, candidate/champion aliases
   models/card.py    # model_card.json reader (serving knows which registered version it runs)
+  serving/          # embedding micro-batcher, admission control (503 + Retry-After)
 tests/              # pytest
 legacy/             # pre-refactor code (read-only reference)
 dvc.yaml, dvc.lock # evaluation pipeline + exact record of its inputs/outputs
@@ -72,6 +73,17 @@ python -m faceai.registry pull --alias champion  # weights + model_card.json -> 
 python -m faceai.registry list
 mlflow ui --backend-store-uri sqlite:///mlflow.db   # http://127.0.0.1:5000
 ```
+
+## Performance
+
+```powershell
+python scripts/benchmark_engine.py data/samples/t1.jpg          # detector vs det_size, embedder vs batch size
+python scripts/loadtest.py data/samples/t1.jpg --concurrency 1 4 16   # against a running server
+```
+
+Measured numbers and the batching decision: [`docs/phase-4-serving.md`](docs/phase-4-serving.md).
+Under overload the API returns `503` + `Retry-After` instead of queueing forever
+(`FACEAI_MAX_CONCURRENT_INFERENCE`, `FACEAI_MAX_QUEUE_WAIT_MS`).
 
 ## Docker
 

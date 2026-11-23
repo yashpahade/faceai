@@ -31,6 +31,7 @@ export default function Dashboard() {
     setResult(r);
     setMarking(false);
     if (r.status === "present" || r.status === "late") toast(r.status === "late" ? "Marked late" : "Attendance marked", r.status === "late" ? "info" : "success");
+    else if (r.status === "rejected") toast("Not marked", "error", r.reason);
     load();
   }
 

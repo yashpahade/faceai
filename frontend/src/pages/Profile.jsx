@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 
 import { api, fd } from "../api/client";
 import FaceCamera from "../components/FaceCamera";
+import ThemePicker from "../components/ThemePicker";
 import { ErrorBox, PageHeader } from "../components/ui";
 import { useAuth } from "../store/auth";
 
@@ -60,6 +61,14 @@ export default function Profile() {
         <p className="text-sm text-slate-500">Email: {user.email}</p>
         <button className="btn-primary">Save</button>
       </form>
+
+      <div className="card space-y-4 p-5">
+        <div>
+          <h2 className="font-semibold">Appearance</h2>
+          <p className="text-sm text-slate-500">Saved on this device</p>
+        </div>
+        <ThemePicker />
+      </div>
 
       <div className="card space-y-4 p-5">
         <div className="flex items-center justify-between">

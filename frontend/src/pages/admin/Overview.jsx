@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../api/client";
 import { SkeletonCards, Stagger, StaggerItem } from "../../components/motion";
-import { ErrorBox, PageHeader, StatsCard, StatusBadge } from "../../components/ui";
+import { ErrorBox, PageHeader, StatsCard, StatusBadge, usePolling } from "../../components/ui";
 
 const ago = (iso) => {
   const s = Math.max(1, Math.round((Date.now() - new Date(iso)) / 1000));
@@ -14,9 +14,11 @@ const ago = (iso) => {
 export default function Overview() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  useEffect(() => {
-    api("/v1/admin/overview").then(setData).catch((e) => setError(e.message));
+  const load = useCallback(() => {
+    api("/v1/admin/overview").then((d) => { setData(d); setError(null); }).catch((e) => setError(e.message));
   }, []);
+  useEffect(load, [load]);
+  usePolling(load, 10000); // live kiosk se lagi attendance yahan khud dikhe
 
   const marked = data ? data.today.present + data.today.late : 0;
   const rate = data?.students ? Math.round((100 * marked) / data.students) : null;

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { api } from "../../api/client";
 import AttendanceTable from "../../components/AttendanceTable";
-import { BatchSelector, ErrorBox, PageHeader, Spinner, today } from "../../components/ui";
+import { BatchSelector, ErrorBox, PageHeader, Spinner, today, usePolling } from "../../components/ui";
 
 // Ek din ka attendance + manual override.
 export default function Attendance() {
@@ -11,13 +11,17 @@ export default function Attendance() {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
 
-  const load = () => {
+  const fetchRows = useCallback(() => {
     const p = new URLSearchParams({ from: day, to: day });
     if (batch) p.set("batch_id", batch);
+    return api(`/v1/admin/attendance?${p}`).then(setRows).catch((e) => setError(e.message));
+  }, [day, batch]);
+  const load = () => {
     setRows(null);
-    api(`/v1/admin/attendance?${p}`).then(setRows).catch((e) => setError(e.message));
+    fetchRows();
   };
   useEffect(load, [day, batch]);
+  usePolling(fetchRows, 15000); // background refresh: list "flash" nahi karti
 
   // "Absent" rows sirf beete hue dinon ke liye aate hain; aaj ke unmarked students ko override
   // karne ke liye Students page / student detail use karo.

@@ -4,6 +4,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../store/auth";
 import { spring } from "./motion";
+import { ThemeToggle } from "./ThemePicker";
 
 const I = {
   home: "M3 11.5L12 4l9 7.5M5.5 10v10h13V10",
@@ -94,6 +95,7 @@ export default function Layout({ children }) {
             <p className="truncate text-sm font-semibold">{user.full_name}</p>
             <p className="truncate text-xs capitalize text-slate-500">{user.role}</p>
           </div>
+          <ThemeToggle />
           <button onClick={signOut} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white" aria-label="Log out" title="Log out">
             <Icon d="M15 12H4m0 0l4-4m-4 4l4 4M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" />
           </button>
@@ -106,9 +108,12 @@ export default function Layout({ children }) {
           <span className="flex items-center gap-2 font-bold">
             <img src="/icon.svg" alt="" className="h-7 w-7" /> FaceAI Pro
           </span>
-          <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-xs font-bold text-white" aria-label="Log out">
-            {initials}
-          </button>
+          <span className="flex items-center gap-1">
+            <ThemeToggle />
+            <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-xs font-bold text-white" aria-label="Log out">
+              {initials}
+            </button>
+          </span>
         </header>
         <AnimatePresence>
           {!online && (

@@ -281,7 +281,7 @@ def delete_batch(batch_id: str, _: User = Depends(require_admin), svc=Depends(ge
     return Response(status_code=204)
 
 
-@router.post("/admin/attendance/scan", response_model=list[sc.MarkOut], tags=["admin"])
+@router.post("/admin/attendance/scan", response_model=sc.ScanOut, tags=["admin"])
 def scan(
     request: Request,
     file: UploadFile = File(...),
@@ -291,8 +291,8 @@ def scan(
     """Live camera frame: pehchaane gaye saare students mark (admin supervised kiosk)."""
     img = read_image(request, file)
     with inference_slot(request):
-        results = svc.scan(img, f"admin:{admin.id[:8]}")
-    return [r.__dict__ for r in results]
+        out = svc.scan(img, f"admin:{admin.id[:8]}")
+    return {**out, "results": [r.__dict__ for r in out["results"]]}
 
 
 @router.post("/admin/attendance/manual", tags=["admin"])

@@ -1,0 +1,263 @@
+"""Phase B: auth, RBAC, students, batches, attendance rules, face login, reports."""
+
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+import cv2
+import pytest
+from fastapi.testclient import TestClient
+
+from faceai.api.app import create_app
+from faceai.attendance.models import User
+from faceai.attendance.rules import decide
+from faceai.attendance.security import (
+    create_token,
+    decode_token,
+    hash_password,
+    verify_password,
+)
+from tests.fakes import FakeEngine, make_image
+
+IST = ZoneInfo("Asia/Kolkata")
+
+
+def _png(value: int) -> tuple:
+    ok, buf = cv2.imencode(".png", make_image(value))
+    return ("f.png", buf.tobytes(), "image/png")
+
+
+# ---------- pure units ----------
+def test_password_hash_roundtrip_and_salted():
+    h1, h2 = hash_password("correct horse"), hash_password("correct horse")
+    assert h1 != h2  # har hash ka apna salt
+    assert verify_password("correct horse", h1)
+    assert not verify_password("wrong", h1)
+    assert not verify_password("x", "garbage")
+
+
+def test_jwt_roundtrip_and_tamper():
+    t = create_token("u1", "student", 0, "secret", 5, "pwd")
+    assert decode_token(t, "secret")["sub"] == "u1"
+    assert decode_token(t, "other-secret") is None
+    expired = create_token("u1", "student", 0, "secret", -1, "pwd")
+    assert decode_token(expired, "secret") is None
+
+
+@pytest.mark.parametrize(
+    "hhmm,expect",
+    [
+        ("08:40", (False, None)),  # window abhi khuli nahi (09:00 - 15 min)
+        ("08:50", (True, "present")),
+        ("09:10", (True, "present")),  # exactly late_after -> abhi present
+        ("09:11", (True, "late")),
+        ("10:01", (False, None)),  # class khatam
+    ],
+)
+def test_rules_window_and_late(hhmm, expect):
+    h, m = map(int, hhmm.split(":"))
+    now = datetime(2026, 11, 23, h, m, tzinfo=IST)  # Monday
+    d = decide(now, "09:00", "10:00", "0,1,2,3,4", 10, 15)
+    assert (d.allowed, d.status) == expect
+
+
+def test_rules_no_class_on_weekend():
+    sunday = datetime(2026, 11, 29, 9, 5, tzinfo=IST)
+    assert decide(sunday, "09:00", "10:00", "0,1,2,3,4", 10, 15).allowed is False
+
+
+# ---------- API ----------
+@pytest.fixture
+def app_client(settings):
+    s = settings.model_copy(update={"jwt_secret": "test-secret-0123456789abcdef"})
+    with TestClient(create_app(s, engine=FakeEngine())) as c:
+        yield c
+
+
+def _admin(c) -> dict:
+    svc = c.app.state.attendance
+    with svc.sessions.begin() as db:
+        db.add(
+            User(
+                email="admin@x.in",
+                full_name="Admin",
+                password_hash=hash_password("adminpass123"),
+                role="admin",
+            )
+        )
+    t = c.post("/v1/auth/login", json={"email": "admin@x.in", "password": "adminpass123"}).json()
+    return {"Authorization": f"Bearer {t['access_token']}"}
+
+
+def _always_open_batch(c, h) -> str:
+    # Har din, poore din khula -> test time pe depend nahi
+    r = c.post(
+        "/v1/admin/batches",
+        json={
+            "name": "B1",
+            "start_time": "00:00",
+            "end_time": "23:59",
+            "days": "0,1,2,3,4,5,6",
+            "late_after_min": 1440,
+            "open_before_min": 0,
+        },
+        headers=h,
+    )
+    assert r.status_code == 201, r.text
+    return r.json()["id"]
+
+
+def _live_token(c, value: int) -> str:
+    ch = c.post("/v1/liveness/challenge").json()
+    c.app.state.challenges._challenges[ch["challenge_id"]].steps = ["center", "center"]
+    files = [("frames", _png(value)), ("frames", _png(value))]
+    r = c.post("/v1/liveness/verify", data={"challenge_id": ch["challenge_id"]}, files=files).json()
+    assert r["live"], r
+    return r["token"]
+
+
+def test_signup_login_and_me(app_client):
+    c = app_client
+    body = {"email": "Asha@X.in", "password": "password123", "full_name": "Asha", "consent": True}
+    r = c.post("/v1/auth/signup", json=body)
+    assert r.status_code == 201 and r.json()["user"]["email"] == "asha@x.in"
+    assert c.post("/v1/auth/signup", json=body).status_code == 409
+    assert c.post("/v1/auth/signup", json={**body, "consent": False}).status_code == 422
+    bad = c.post("/v1/auth/login", json={"email": "asha@x.in", "password": "nope"})
+    assert bad.status_code == 401 and bad.json()["detail"] == "invalid email or password"
+    tok = c.post("/v1/auth/login", json={"email": "asha@x.in", "password": "password123"}).json()
+    me = c.get("/v1/me", headers={"Authorization": f"Bearer {tok['access_token']}"}).json()
+    assert me["role"] == "student" and me["face_enrolled"] is False
+    assert c.get("/v1/me").status_code == 401
+
+
+def test_student_cannot_use_admin_routes(app_client):
+    c = app_client
+    t = c.post(
+        "/v1/auth/signup",
+        json={"email": "s@x.in", "password": "password123", "full_name": "S", "consent": True},
+    ).json()["access_token"]
+    assert c.get("/v1/admin/students", headers={"Authorization": f"Bearer {t}"}).status_code == 403
+
+
+def test_face_enroll_face_login_and_self_attendance(app_client):
+    c = app_client
+    h_admin = _admin(c)
+    batch = _always_open_batch(c, h_admin)
+    t = c.post(
+        "/v1/auth/signup",
+        json={
+            "email": "ravi@x.in",
+            "password": "password123",
+            "full_name": "Ravi",
+            "consent": True,
+        },
+    ).json()["access_token"]
+    h = {"Authorization": f"Bearer {t}"}
+    me = c.get("/v1/me", headers=h).json()
+    c.patch(f"/v1/admin/students/{me['id']}", json={"batch_id": batch}, headers=h_admin)
+
+    assert c.post("/v1/me/face", files={"file": _png(42)}, headers=h).status_code == 201
+    assert c.get("/v1/me", headers=h).json()["face_enrolled"] is True
+
+    # face login: liveness token se (password nahi)
+    r = c.post("/v1/auth/face-login", json={"liveness_token": _live_token(c, 42)})
+    assert r.status_code == 200 and r.json()["user"]["email"] == "ravi@x.in"
+    # token single use
+    tok = _live_token(c, 42)
+    c.post("/v1/auth/face-login", json={"liveness_token": tok})
+    assert c.post("/v1/auth/face-login", json={"liveness_token": tok}).status_code == 401
+    # unknown face
+    assert (
+        c.post("/v1/auth/face-login", json={"liveness_token": _live_token(c, 7)}).status_code == 401
+    )
+
+    # self attendance: present, phir duplicate
+    m1 = c.post("/v1/me/attendance", json={"liveness_token": _live_token(c, 42)}, headers=h).json()
+    assert m1["status"] == "present"
+    m2 = c.post("/v1/me/attendance", json={"liveness_token": _live_token(c, 42)}, headers=h).json()
+    assert m2["status"] == "already_marked"
+    # kisi aur ka chehra apne account pe nahi chalega
+    other = c.post(
+        "/v1/me/attendance", json={"liveness_token": _live_token(c, 7)}, headers=h
+    ).json()
+    assert other["status"] == "rejected"
+
+    rec = c.get("/v1/me/attendance", headers=h).json()
+    assert [r["status"] for r in rec] == ["present"]
+
+
+def test_admin_crm_scan_manual_reports(app_client):
+    c = app_client
+    h = _admin(c)
+    batch = _always_open_batch(c, h)
+    r = c.post(
+        "/v1/admin/students",
+        json={
+            "email": "zoya@x.in",
+            "full_name": "Zoya",
+            "roll_no": "R-7",
+            "batch_id": batch,
+            "consent": True,
+        },
+        headers=h,
+    )
+    assert r.status_code == 201 and len(r.json()["temporary_password"]) >= 8
+    sid = r.json()["student"]["id"]
+    assert (
+        c.post(f"/v1/admin/students/{sid}/face", files={"file": _png(42)}, headers=h).status_code
+        == 201
+    )
+
+    assert [s["roll_no"] for s in c.get("/v1/admin/students?q=r-7", headers=h).json()] == ["R-7"]
+    assert c.get("/v1/admin/batches", headers=h).json()[0]["student_count"] == 1
+
+    scan = c.post("/v1/admin/attendance/scan", files={"file": _png(42)}, headers=h).json()
+    assert [(s["full_name"], s["status"]) for s in scan] == [("Zoya", "present")]
+
+    # manual override -> late, phir report
+    c.post("/v1/admin/attendance/manual", json={"user_id": sid, "status": "late"}, headers=h)
+    summary = c.get("/v1/admin/reports/summary", headers=h).json()
+    assert summary["students"][0]["late"] == 1 and summary["students"][0]["attendance_pct"] == 100.0
+    csv_text = c.get("/v1/admin/reports/export.csv", headers=h).text
+    assert csv_text.splitlines()[0].startswith("day,student,email") and "Zoya" in csv_text
+    assert c.get("/v1/admin/overview", headers=h).json()["today"]["late"] == 1
+
+    # delete student -> biometric bhi gaya, face ab match nahi
+    d = c.delete(f"/v1/admin/students/{sid}", headers=h).json()
+    assert d["deleted_embeddings"] == 1
+    assert c.post("/v1/admin/attendance/scan", files={"file": _png(42)}, headers=h).json() == []
+
+
+def test_absent_rows_for_past_class_days(app_client):
+    c = app_client
+    h = _admin(c)
+    batch = _always_open_batch(c, h)
+    sid = c.post(
+        "/v1/admin/students",
+        json={"email": "a@x.in", "full_name": "A", "batch_id": batch, "consent": True},
+        headers=h,
+    ).json()["student"]["id"]
+    svc = c.app.state.attendance
+    with svc.sessions.begin() as db:
+        db.get(User, sid).enrollment_date = svc.now_local().date() - timedelta(days=3)
+    rows = c.get(f"/v1/admin/attendance?user_id={sid}", headers=h).json()
+    assert [r["status"] for r in rows] == ["absent", "absent", "absent"]  # aaj abhi absent nahi
+
+
+def test_password_change_invalidates_old_tokens(app_client):
+    c = app_client
+    h = _admin(c)
+    t = c.post(
+        "/v1/auth/signup",
+        json={"email": "p@x.in", "password": "password123", "full_name": "P", "consent": True},
+    ).json()
+    old = {"Authorization": f"Bearer {t['access_token']}"}
+    c.patch(f"/v1/admin/students/{t['user']['id']}", json={"password": "newpassword1"}, headers=h)
+    assert c.get("/v1/me", headers=old).status_code == 401
+
+
+def test_csv_formula_injection_neutralized():
+    from faceai.attendance.service import _csv_safe
+
+    assert _csv_safe("=HYPERLINK(evil)") == "'=HYPERLINK(evil)"
+    assert _csv_safe("Asha") == "Asha"

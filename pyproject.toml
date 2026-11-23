@@ -18,6 +18,9 @@ dependencies = [
     "faiss-cpu==1.11.0",
     "prometheus-client==0.23.1",
     "cryptography==50.0.2",
+    "SQLAlchemy==2.1.9",
+    "PyJWT==2.10.1",
+    "tzdata==2026.6",
 ]
 
 [project.optional-dependencies]
@@ -49,7 +52,7 @@ extend-exclude = ["legacy"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI ka dependency-injection pattern (Depends/File defaults) intentional hai
-extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form"]
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Form", "fastapi.Query"]
 
 [tool.ruff.lint]
 select = [

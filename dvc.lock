@@ -33,9 +33,9 @@ stages:
       size: 3183
     - path: src/faceai/vision
       hash: md5
-      md5: 641f4a85b117f138bb5cf4a4e123e9a1.dir
-      size: 51838
-      nfiles: 16
+      md5: 34c43587e7e8068974b9ee1b4760df38.dir
+      size: 18490
+      nfiles: 8
     params:
       params.yaml:
         eval.det_size: 640

@@ -25,6 +25,8 @@ venv/
 /uploads/
 /models/
 /mlruns/
+/mlartifacts/
+mlflow.db
 *.faiss
 *.bin
 *.pkl

@@ -7,7 +7,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 0 | Foundation: git, packaging, config, logging, tests, Docker | ✅ done |
 | 1 | Core pipeline: aligned ArcFace embeddings, GPU, vector index | ✅ done |
 | 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | ✅ done |
-| 3 | Experiment tracking + model registry: MLflow | |
+| 3 | Experiment tracking + model registry: MLflow | ✅ done |
 | 4 | Serving: batching, performance | |
 | 5 | CI/CD with eval gate: GitHub Actions | |
 | 6 | Monitoring + drift: Prometheus, Grafana | |
@@ -27,6 +27,8 @@ src/faceai/
   store/            # SQLite (source of truth) + FAISS index (cache)
   models/download.py# model artifact download + SHA-256 verification
   eval/             # LFW benchmark, metrics (ROC/TAR@FAR/EER), quality gate
+  registry.py       # MLflow: log eval runs, model versions, candidate/champion aliases
+  models/card.py    # model_card.json reader (serving knows which registered version it runs)
 tests/              # pytest
 legacy/             # pre-refactor code (read-only reference)
 dvc.yaml, dvc.lock # evaluation pipeline + exact record of its inputs/outputs
@@ -58,6 +60,17 @@ python -m dvc repro                  # download LFW -> embed -> evaluate (only c
 python -m dvc metrics show           # headline numbers
 python -m dvc plots show             # ROC + score histogram -> dvc_plots/index.html
 python -m faceai.eval.gate           # fails (exit 1) if model quality is below params.yaml gate
+```
+
+## Experiment tracking + model registry (MLflow)
+
+```powershell
+.venv\Scripts\python -m pip install -e ".[mlops]"
+python -m faceai.registry log                    # eval run -> MLflow; new weights -> new version (alias: candidate)
+python -m faceai.registry promote                # candidate -> champion (quality gate + no regression vs champion)
+python -m faceai.registry pull --alias champion  # weights + model_card.json -> models/ (sha256 verified)
+python -m faceai.registry list
+mlflow ui --backend-store-uri sqlite:///mlflow.db   # http://127.0.0.1:5000
 ```
 
 ## Docker

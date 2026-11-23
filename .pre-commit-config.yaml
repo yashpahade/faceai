@@ -20,6 +20,15 @@ repos:
         entry: python -m pre_commit_hooks.end_of_file_fixer
         types: [text]
         exclude: ^(dvc\.lock|reports/)  # DVC-generated; editing breaks recorded hashes
+      # Working copy bhi LF rakho (repo mein to LF hai hi). DVC working-copy bytes hash karta hai:
+      # CRLF file pe nikla hash Linux CI pe kabhi match nahi karega -> eval "stale" dikhega.
+      - id: mixed-line-ending
+        name: normalize line endings to LF
+        language: python
+        additional_dependencies: [pre-commit-hooks==5.0.0]
+        entry: python -m pre_commit_hooks.mixed_line_ending --fix=lf
+        types: [text]
+        exclude: \.(bat|ps1)$
       - id: check-yaml
         name: check yaml
         language: python

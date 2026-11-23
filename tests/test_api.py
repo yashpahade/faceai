@@ -26,6 +26,10 @@ def test_version(client):
         "env": "test",
         "model_id": "fake/v1",
         "device": "cpu",
+        "model_version": None,  # no model_card.json -> unregistered model
+        "model_alias": None,
+        "match_threshold": 0.4,
+        "recommended_threshold": None,
     }
 
 

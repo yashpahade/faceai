@@ -13,15 +13,24 @@ const I = {
   cal: "M8 3v4m8-4v4M4 10h16M5 5h14v15H5z",
   chart: "M4 20V10m6 10V4m6 16v-7m4 7H2",
   layers: "M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5",
+  teacher: "M4 19V6l8-3 8 3v13M9 21v-6h6v6M8 9h8",
+  sun: "M12 3v2m0 14v2m9-9h-2M5 12H3m14.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
+  leave: "M8 7V3m8 4V3M4 11h16M5 5h14v15H5zM9 15l2 2 4-4",
   user: "M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21c1-4 4-6 8-6s7 2 8 6",
 };
-const ADMIN = [
+const TEACHER = [
   ["/admin", "Overview", I.home],
   ["/admin/live", "Live", I.live],
   ["/admin/students", "Students", I.users],
   ["/admin/attendance", "Attendance", I.cal],
+  ["/admin/leaves", "Leaves", I.leave],
   ["/admin/reports", "Reports", I.chart],
+];
+const ADMIN = [
+  ...TEACHER,
   ["/admin/batches", "Batches", I.layers],
+  ["/admin/teachers", "Teachers", I.teacher],
+  ["/admin/holidays", "Holidays", I.sun],
 ];
 const STUDENT = [
   ["/dashboard", "Home", I.home],
@@ -58,7 +67,7 @@ export default function Layout({ children }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const online = useOnline();
-  const items = user.role === "admin" ? [...ADMIN, ["/profile", "Profile", I.user]] : STUDENT;
+  const items = user.role === "admin" ? [...ADMIN, ["/profile", "Profile", I.user]] : user.role === "teacher" ? [...TEACHER, ["/profile", "Profile", I.user]] : STUDENT;
   const initials = user.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   const signOut = () => {
     logout();

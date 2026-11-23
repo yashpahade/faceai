@@ -28,6 +28,17 @@ describe("routing guards", () => {
   });
 });
 
+describe("teacher role", () => {
+  beforeEach(() => useAuth.getState().logout());
+  it("can open staff pages but not admin-only pages", async () => {
+    useAuth.getState().setSession("t", { role: "teacher", full_name: "Teacher One" });
+    renderAt("/admin/teachers"); // admin-only -> redirected to overview
+    expect(await screen.findByRole("heading", { name: "Overview" })).toBeInTheDocument();
+    expect(screen.queryAllByRole("link", { name: /Teachers/ })).toHaveLength(0);
+    expect(screen.getAllByRole("link", { name: /Leaves/ }).length).toBeGreaterThan(0);
+  });
+});
+
 describe("AttendanceTable", () => {
   const rows = [
     { user_id: "1", full_name: "Asha", batch: "B1", day: "2026-11-20", status: "present", method: "face", confidence: 0.81 },

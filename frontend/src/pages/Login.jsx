@@ -74,7 +74,7 @@ export default function Login() {
   const done = (r) => {
     setSession(r.access_token, r.user);
     toast(`Welcome back, ${r.user.full_name.split(" ")[0]}`, "success");
-    nav(r.user.role === "admin" ? "/admin" : "/dashboard", { replace: true });
+    nav(r.user.role === "student" ? "/dashboard" : "/admin", { replace: true });
   };
 
   async function passwordLogin(e) {

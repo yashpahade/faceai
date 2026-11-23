@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from faceai.attendance.models import Attendance, Batch, User
+from faceai.attendance.models import Attendance, Batch, Holiday, Leave, User
 from faceai.attendance.rules import decide
 from faceai.attendance.security import create_token, hash_password, verify_password
 from faceai.config import Settings
@@ -40,6 +40,10 @@ class ConflictError(Exception):
 
 class NotFound(Exception):
     pass
+
+
+class ForbiddenError(Exception):
+    """Teacher ne apne batches ke bahar ka data chhua (403)."""
 
 
 class RuleError(Exception):
@@ -153,7 +157,7 @@ class AttendanceService:
         return self.bio.enroll_face(person_id, image_bgr, actor)
 
     # ---------- students (admin) ----------
-    def create_student(self, data: dict, actor: str) -> tuple[User, str]:
+    def create_student(self, data: dict, actor: str, role: str = "student") -> tuple[User, str]:
         temp_password = data.pop("password", None) or secrets.token_urlsafe(9)
         data["email"] = data["email"].strip().lower()
         with self.sessions.begin() as db:
@@ -162,7 +166,7 @@ class AttendanceService:
             u = User(
                 **data,
                 password_hash=hash_password(temp_password),
-                role="student",
+                role=role,
                 enrollment_date=self.now_local().date(),  # local date, not UTC (see signup)
             )
             db.add(u)
@@ -172,9 +176,17 @@ class AttendanceService:
                 raise ConflictError("email already registered") from None
         return u, temp_password
 
-    def list_students(self, q: str | None, batch_id: str | None, status: str | None):
+    def list_students(
+        self,
+        q: str | None,
+        batch_id: str | None,
+        status: str | None,
+        scope: set[str] | None = None,
+    ):
         with self.sessions() as db:
             stmt = select(User).where(User.role == "student").order_by(User.full_name)
+            if scope is not None:  # teacher: sirf apne batches
+                stmt = stmt.where(User.batch_id.in_(scope))
             if q:
                 like = f"%{q.lower()}%"
                 stmt = stmt.where(
@@ -274,6 +286,9 @@ class AttendanceService:
                     u.id, u.full_name, "rejected", "not in any batch (assign one)", confidence
                 )
             b = u.batch
+            hol = self._holiday(db, b.id, now_local.date())
+            if hol is not None:
+                return MarkResult(u.id, u.full_name, "rejected", f"holiday: {hol.name}", confidence)
             d = decide(
                 now_local, b.start_time, b.end_time, b.days, b.late_after_min, b.open_before_min
             )
@@ -321,7 +336,7 @@ class AttendanceService:
             return MarkResult(user_id, name, "rejected", "face does not match your account")
         return self.mark(user_id, "face", "self", round(hit[1], 4))
 
-    def scan(self, image_bgr, marked_by: str) -> dict:
+    def scan(self, image_bgr, marked_by: str, scope: set[str] | None = None) -> dict:
         """Admin live camera / kiosk: photo ke saare pehchaane gaye students mark.
         UI ko HAR frame ka hisaab chahiye (kitne chehre, kitne anjaan), warna "kuch nahi hua"
         aur "chehra pehchana nahi" mein farak nahi dikhta."""
@@ -336,13 +351,20 @@ class AttendanceService:
             if u is None:
                 unknown += 1
                 continue
+            if scope is not None and u.batch_id not in scope:
+                out.append(MarkResult(u.id, u.full_name, "rejected", "not in your batches", None))
+                continue
             out.append(self.mark(u.id, "face", marked_by, f.match.similarity))
         return {"faces": len(res.faces), "unknown": unknown, "results": out}
 
-    def manual(self, user_id: str, day: date, status: str, admin_id: str) -> Attendance | None:
-        """Admin override: upsert. status='absent' => record hatao."""
+    def manual(
+        self, user_id: str, day: date, status: str, admin_id: str, scope: set[str] | None = None
+    ) -> Attendance | None:
+        """Admin/teacher override: upsert. status='absent' => record hatao."""
         with self.sessions.begin() as db:
             u = self.get_user(db, user_id)
+            if scope is not None and u.batch_id not in scope:
+                raise ForbiddenError("student is not in your batches")
             if u.batch_id is None:
                 raise RuleError("no batch assigned")
             rec = db.scalar(
@@ -369,10 +391,15 @@ class AttendanceService:
         end: date,
         batch_id: str | None = None,
         user_id: str | None = None,
+        scope: set[str] | None = None,
     ) -> list[dict]:
-        """Records + ABSENT rows (class wale din, jinka record nahi). Reports isi pe bante hain."""
+        """Records + computed rows for class days without a record:
+        holiday (us batch/sab ke liye) -> "holiday", approved leave -> "leave", warna -> "absent".
+        Holiday/leave din attendance % ke denominator mein nahi gine jaate."""
         with self.sessions() as db:
             students = select(User).where(User.role == "student", User.batch_id.is_not(None))
+            if scope is not None:
+                students = students.where(User.batch_id.in_(scope))
             if batch_id:
                 students = students.where(User.batch_id == batch_id)
             if user_id:
@@ -384,6 +411,17 @@ class AttendanceService:
                     select(Attendance).where(Attendance.day >= start, Attendance.day <= end)
                 )
             }
+            holidays: dict[tuple[str | None, date], str] = {
+                (h.batch_id, h.day): h.name
+                for h in db.scalars(select(Holiday).where(Holiday.day >= start, Holiday.day <= end))
+            }
+            leaves: dict[str, list[tuple[date, date]]] = {}
+            for lv in db.scalars(
+                select(Leave).where(
+                    Leave.status == "approved", Leave.start <= end, Leave.end >= start
+                )
+            ):
+                leaves.setdefault(lv.user_id, []).append((lv.start, lv.end))
             today = self.now_local().date()
             rows = []
             for u in users:
@@ -394,13 +432,20 @@ class AttendanceService:
                     a = recs.get((u.id, d))
                     if a is not None:
                         rows.append(_row(u, b, d, a.status, a.method, a.confidence, a.marked_at))
-                    elif str(d.weekday()) in class_days and d < today:
-                        rows.append(_row(u, b, d, "absent", None, None, None))
+                    elif str(d.weekday()) in class_days:
+                        if (b.id, d) in holidays or (None, d) in holidays:
+                            rows.append(_row(u, b, d, "holiday", None, None, None))
+                        elif any(s0 <= d <= e0 for s0, e0 in leaves.get(u.id, [])):
+                            rows.append(_row(u, b, d, "leave", None, None, None))
+                        elif d < today:
+                            rows.append(_row(u, b, d, "absent", None, None, None))
                     d += timedelta(days=1)
             return sorted(rows, key=lambda r: (r["day"], r["full_name"]))
 
-    def summary(self, start: date, end: date, batch_id: str | None = None) -> dict:
-        rows = self.records(start, end, batch_id)
+    def summary(
+        self, start: date, end: date, batch_id: str | None = None, scope: set[str] | None = None
+    ) -> dict:
+        rows = self.records(start, end, batch_id, scope=scope)
         per_student: dict[str, dict] = {}
         per_day: dict[str, dict] = {}
         for r in rows:
@@ -413,11 +458,21 @@ class AttendanceService:
                     "present": 0,
                     "late": 0,
                     "absent": 0,
+                    "leave": 0,
+                    "holiday": 0,
                 },
             )
             s[r["status"]] += 1
             dd = per_day.setdefault(
-                str(r["day"]), {"day": str(r["day"]), "present": 0, "late": 0, "absent": 0}
+                str(r["day"]),
+                {
+                    "day": str(r["day"]),
+                    "present": 0,
+                    "late": 0,
+                    "absent": 0,
+                    "leave": 0,
+                    "holiday": 0,
+                },
             )
             dd[r["status"]] += 1
         for s in per_student.values():
@@ -432,7 +487,9 @@ class AttendanceService:
             "days": sorted(per_day.values(), key=lambda d: d["day"]),
         }
 
-    def export_csv(self, start: date, end: date, batch_id: str | None = None) -> str:
+    def export_csv(
+        self, start: date, end: date, batch_id: str | None = None, scope: set[str] | None = None
+    ) -> str:
         buf = io.StringIO()
         w = csv.writer(buf, lineterminator="\n")
         w.writerow(
@@ -448,7 +505,7 @@ class AttendanceService:
                 "marked_at",
             ]
         )
-        for r in self.records(start, end, batch_id):
+        for r in self.records(start, end, batch_id, scope=scope):
             w.writerow(
                 [
                     r["day"],
@@ -464,39 +521,49 @@ class AttendanceService:
             )
         return buf.getvalue()
 
-    def overview(self) -> dict:
+    def overview(self, scope: set[str] | None = None) -> dict:
         today = self.now_local().date()
         with self.sessions() as db:
-            n_students = db.scalar(
-                select(func.count()).select_from(User).where(User.role == "student")
-            )
-            n_enrolled = db.scalar(
-                select(func.count())
-                .select_from(User)
-                .where(User.role == "student", User.person_id.is_not(None))
-            )
+            students = select(User).where(User.role == "student")
+            if scope is not None:
+                students = students.where(User.batch_id.in_(scope))
+            users = list(db.scalars(students))
+            ids = [u.id for u in users]
             today_counts = dict(
                 db.execute(
                     select(Attendance.status, func.count())
-                    .where(Attendance.day == today)
+                    .where(Attendance.day == today, Attendance.user_id.in_(ids))
                     .group_by(Attendance.status)
                 ).all()
             )
             recent = db.execute(
                 select(Attendance, User.full_name)
                 .join(User, User.id == Attendance.user_id)
+                .where(Attendance.user_id.in_(ids))
                 .order_by(Attendance.marked_at.desc())
                 .limit(10)
             ).all()
-            n_batches = db.scalar(select(func.count()).select_from(Batch))
+            n_batches = (
+                len(scope)
+                if scope is not None
+                else db.scalar(select(func.count()).select_from(Batch))
+            )
+            pending_leaves = db.scalar(
+                select(func.count())
+                .select_from(Leave)
+                .where(Leave.status == "pending", Leave.user_id.in_(ids))
+            )
+            holiday = self._holiday_any(db, today, scope)
         return {
-            "students": n_students,
-            "face_enrolled": n_enrolled,
+            "students": len(users),
+            "face_enrolled": sum(u.person_id is not None for u in users),
             "batches": n_batches,
+            "pending_leaves": pending_leaves,
             "today": {
                 "day": str(today),
                 "present": today_counts.get("present", 0),
                 "late": today_counts.get("late", 0),
+                "holiday": holiday,
             },
             "recent": [
                 {
@@ -508,6 +575,188 @@ class AttendanceService:
                 for a, name in recent
             ],
         }
+
+    # ---------- holidays ----------
+    @staticmethod
+    def _holiday(db: Session, batch_id: str, day: date) -> Holiday | None:
+        return db.scalar(
+            select(Holiday).where(
+                Holiday.day == day, (Holiday.batch_id == batch_id) | Holiday.batch_id.is_(None)
+            )
+        )
+
+    @staticmethod
+    def _holiday_any(db: Session, day: date, scope: set[str] | None) -> str | None:
+        hs = list(db.scalars(select(Holiday).where(Holiday.day == day)))
+        for h in hs:
+            if h.batch_id is None or scope is None or h.batch_id in scope:
+                return h.name
+        return None
+
+    def list_holidays(self, start: date, end: date) -> list[Holiday]:
+        with self.sessions() as db:
+            return list(
+                db.scalars(
+                    select(Holiday)
+                    .where(Holiday.day >= start, Holiday.day <= end)
+                    .order_by(Holiday.day)
+                )
+            )
+
+    def add_holiday(self, day: date, name: str, batch_id: str | None, actor: str) -> Holiday:
+        with self.sessions.begin() as db:
+            if batch_id and db.get(Batch, batch_id) is None:
+                raise NotFound("batch")
+            h = Holiday(day=day, name=name.strip(), batch_id=batch_id, created_by=actor)
+            db.add(h)
+            try:
+                db.flush()
+            except IntegrityError:
+                raise ConflictError("holiday already exists for that day") from None
+            return h
+
+    def delete_holiday(self, holiday_id: int) -> None:
+        with self.sessions.begin() as db:
+            h = db.get(Holiday, holiday_id)
+            if h is None:
+                raise NotFound("holiday")
+            db.delete(h)
+
+    # ---------- leaves ----------
+    def request_leave(self, user_id: str, start: date, end: date, reason: str) -> Leave:
+        if end < start:
+            raise RuleError("end date is before start date")
+        if (end - start).days > 60:
+            raise RuleError("leave can be at most 60 days")
+        with self.sessions.begin() as db:
+            lv = Leave(user_id=user_id, start=start, end=end, reason=reason.strip())
+            db.add(lv)
+            db.flush()
+            return lv
+
+    def my_leaves(self, user_id: str) -> list[Leave]:
+        with self.sessions() as db:
+            return list(
+                db.scalars(
+                    select(Leave).where(Leave.user_id == user_id).order_by(Leave.start.desc())
+                )
+            )
+
+    def list_leaves(self, status: str | None, scope: set[str] | None) -> list[tuple[Leave, User]]:
+        with self.sessions() as db:
+            stmt = select(Leave, User).join(User, User.id == Leave.user_id).order_by(Leave.start)
+            if status:
+                stmt = stmt.where(Leave.status == status)
+            if scope is not None:
+                stmt = stmt.where(User.batch_id.in_(scope))
+            return list(db.execute(stmt).all())
+
+    def decide_leave(
+        self, leave_id: int, approve: bool, actor: str, scope: set[str] | None
+    ) -> Leave:
+        with self.sessions.begin() as db:
+            lv = db.get(Leave, leave_id)
+            if lv is None:
+                raise NotFound("leave")
+            if scope is not None and lv.user.batch_id not in scope:
+                raise ForbiddenError("student is not in your batches")
+            lv.status = "approved" if approve else "rejected"
+            lv.decided_by = actor
+            return lv
+
+    # ---------- teachers ----------
+    def scope_for(self, user: User) -> set[str] | None:
+        """Admin: None (sab). Teacher: assigned batch ids (khaali set = kuch nahi)."""
+        if user.role == "admin":
+            return None
+        with self.sessions() as db:
+            u = db.get(User, user.id)
+            return {b.id for b in u.teaching}
+
+    def list_teachers(self) -> list[User]:
+        with self.sessions() as db:
+            teachers = list(
+                db.scalars(select(User).where(User.role == "teacher").order_by(User.full_name))
+            )
+            for t in teachers:
+                t.batch_ids = [b.id for b in t.teaching]
+            return teachers
+
+    def set_teacher_batches(self, teacher_id: str, batch_ids: list[str]) -> list[str]:
+        with self.sessions.begin() as db:
+            t = self.get_user(db, teacher_id)
+            if t.role != "teacher":
+                raise RuleError("user is not a teacher")
+            batches = list(db.scalars(select(Batch).where(Batch.id.in_(batch_ids))))
+            if len(batches) != len(set(batch_ids)):
+                raise NotFound("batch")
+            t.teaching = batches
+            return [b.id for b in batches]
+
+    # ---------- bulk import ----------
+    def import_students(self, rows: list[dict], dry_run: bool, actor: str) -> dict:
+        """Saari rows validate; koi bhi error => KUCH import nahi (all-or-nothing)."""
+        from pydantic import ValidationError
+
+        from faceai.attendance.schemas import ImportRow
+
+        errors: list[dict] = []
+        clean: list[dict] = []
+        with self.sessions() as db:
+            batches = {b.name.strip().lower(): b.id for b in db.scalars(select(Batch))}
+            existing = {e for (e,) in db.execute(select(User.email))}
+        seen: set[str] = set()
+        for i, raw in enumerate(rows, start=2):  # row 1 = header (Excel numbering)
+            bname = (raw.get("batch") or "").strip()
+            if bname and bname.lower() not in batches:  # har row ki SAARI galtiyan ek saath
+                errors.append({"row": i, "field": "batch", "error": f"no batch named '{bname}'"})
+            try:
+                r = ImportRow(**raw)
+            except ValidationError as e:
+                for err in e.errors():
+                    field = str(err["loc"][0]) if err["loc"] else "row"
+                    msg = err["msg"].removeprefix("Value error, ")
+                    errors.append({"row": i, "field": field, "error": msg})
+                continue
+            email = r.email.lower()
+            if email in seen:
+                errors.append({"row": i, "field": "email", "error": "duplicate in file"})
+            elif email in existing:
+                errors.append({"row": i, "field": "email", "error": "already registered"})
+            seen.add(email)
+            batch_id = batches.get(r.batch.strip().lower()) if r.batch else None
+            clean.append({**r.model_dump(exclude={"batch"}), "email": email, "batch_id": batch_id})
+        result = {
+            "rows": len(rows),
+            "valid": len(rows) - len({e["row"] for e in errors}),
+            "errors": errors,
+            "created": [],
+        }
+        if errors or dry_run:
+            return result
+        created = []
+        with self.sessions.begin() as db:
+            for data in clean:
+                pw = secrets.token_urlsafe(9)
+                u = User(
+                    **data,
+                    password_hash=hash_password(pw),
+                    role="student",
+                    enrollment_date=self.now_local().date(),
+                )
+                db.add(u)
+                db.flush()
+                created.append(
+                    {
+                        "id": u.id,
+                        "email": u.email,
+                        "full_name": u.full_name,
+                        "temporary_password": pw,
+                    }
+                )
+        logger.info("bulk import", extra={"students_created": len(created), "actor": actor})
+        result["created"] = created
+        return result
 
 
 def _row(u: User, b: Batch, d: date, status, method, confidence, marked_at) -> dict:

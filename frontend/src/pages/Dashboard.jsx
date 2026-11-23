@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
 import AttendanceTable from "../components/AttendanceTable";
+import LeaveRequest from "../components/LeaveRequest";
 import LivenessFlow from "../components/LivenessFlow";
 import { ProgressRing, Stagger, SuccessBurst, toast } from "../components/motion";
 import { ErrorBox, Spinner, StatsCard } from "../components/ui";
@@ -116,6 +117,8 @@ export default function Dashboard() {
           <StatsCard label="Absent" value={count("absent")} tone="red" icon="x" />
         </Stagger>
       </div>
+
+      <LeaveRequest />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold">My history</h2>

@@ -35,6 +35,17 @@ export default function Overview() {
         </Link>
       </PageHeader>
       <ErrorBox error={error} />
+      {data?.today.holiday && (
+        <div className="card border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100">
+          🎉 Today is a holiday: <b>{data.today.holiday}</b>. Attendance is closed.
+        </div>
+      )}
+      {data?.pending_leaves > 0 && (
+        <Link to="/admin/leaves" className="card flex items-center justify-between border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+          <span><b>{data.pending_leaves}</b> leave request{data.pending_leaves > 1 ? "s" : ""} waiting for approval</span>
+          <span className="font-semibold">Review →</span>
+        </Link>
+      )}
 
       {!data ? (
         <SkeletonCards />

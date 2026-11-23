@@ -22,7 +22,7 @@ jobs:
     env:
       MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: pip install -e ".[gpu,eval,mlops]"
       - run: python -m faceai.models.download
       - run: python -m dvc pull || true # remote configured ho to cache se data lo

@@ -9,7 +9,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 2 | Evaluation: benchmark, ROC, TAR@FAR, DVC | ✅ done |
 | 3 | Experiment tracking + model registry: MLflow | ✅ done |
 | 4 | Serving: batching, performance | ✅ done |
-| 5 | CI/CD with eval gate: GitHub Actions | |
+| 5 | CI/CD with eval gate: GitHub Actions | ✅ done |
 | 6 | Monitoring + drift: Prometheus, Grafana | |
 | 7 | Trust & safety: liveness, encryption, data deletion | |
 
@@ -61,6 +61,7 @@ python -m dvc repro                  # download LFW -> embed -> evaluate (only c
 python -m dvc metrics show           # headline numbers
 python -m dvc plots show             # ROC + score histogram -> dvc_plots/index.html
 python -m faceai.eval.gate           # fails (exit 1) if model quality is below params.yaml gate
+python -m faceai.eval.freshness      # fails if code/params changed since the last `dvc repro` (CI uses this)
 ```
 
 ## Experiment tracking + model registry (MLflow)
@@ -84,6 +85,16 @@ python scripts/loadtest.py data/samples/t1.jpg --concurrency 1 4 16   # against 
 Measured numbers and the batching decision: [`docs/phase-4-serving.md`](docs/phase-4-serving.md).
 Under overload the API returns `503` + `Retry-After` instead of queueing forever
 (`FACEAI_MAX_CONCURRENT_INFERENCE`, `FACEAI_MAX_QUEUE_WAIT_MS`).
+
+## CI/CD (GitHub Actions)
+
+| Workflow | Trigger | Does |
+|---|---|---|
+| `ci.yml` | push / PR | ruff, pytest (+coverage ratchet), eval freshness + quality gate, Docker build + container smoke test |
+| `release.yml` | tag `v*.*.*` | gate, then build + push `ghcr.io/<repo>:<version>` |
+| `eval-full.yml` | manual | full LFW eval on a self-hosted GPU runner, gate, MLflow log |
+
+Details: [`docs/phase-5-cicd.md`](docs/phase-5-cicd.md).
 
 ## Docker
 

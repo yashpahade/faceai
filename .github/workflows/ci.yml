@@ -1,0 +1,91 @@
+# CI: har push/PR pe. Koi bhi job fail => PR merge nahi hona chahiye (branch protection mein
+# in jobs ko "required" banao: Settings -> Branches -> main -> Require status checks).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency: # same PR pe naya push => purana run cancel (paise + time bachao)
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ruff==0.8.4
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # CPU runtime: tests fake engine use karte hain, GPU/model ki zaroorat nahi
+      - run: pip install -e ".[cpu,dev,eval,mlops]"
+      # Ratchet: abhi ~71%. Naye tests ke saath ise badhao, kabhi ghatao mat.
+      - run: python -m pytest --cov=faceai --cov-report=term --cov-fail-under=70
+
+  # "Model achha hai?" - code tests se alag sawaal (Phase 2 quality gate)
+  eval-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -e ".[eval]"
+      # 1) committed metrics ABHI ke code/params se bane hain? (warna gate purane numbers dekhega)
+      - run: python -m faceai.eval.freshness
+      # 2) metrics params.yaml ke minimum se upar hain?
+      - run: python -m faceai.eval.gate
+      - name: Metrics summary on the run page
+        run: |
+          python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          m = json.load(open("reports/eval/metrics.json"))
+          print(f"### Model quality: {m['model_id']} on {m['dataset']}")
+          print("| metric | value |")
+          print("|---|---|")
+          for k in ("kfold_accuracy", "auc", "eer", "failure_to_detect_rate"):
+              print(f"| {k} | {m[k]} |")
+          for far, d in m["tar_at_far"].items():
+              print(f"| TAR@FAR={far} | {d['tar']} (thr {d['threshold']}) |")
+          PY
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: faceai:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Container smoke test: models mount nahi kiye -> live=200, ready=503 (sahi behaviour)
+      - name: Smoke test container
+        run: |
+          docker run -d --name faceai -p 8000:8000 faceai:ci
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:8000/health/live && break; sleep 1; done
+          curl -fs http://127.0.0.1:8000/health/live
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/health/ready)" = 503
+      - if: failure()
+        run: docker logs faceai

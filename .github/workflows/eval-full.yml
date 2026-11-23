@@ -1,0 +1,38 @@
+# Full model evaluation: LFW embed (GPU) -> metrics -> gate -> MLflow log.
+# GitHub ke hosted runners pe GPU + 200 MB dataset nahi hota, isliye ye SELF-HOSTED GPU runner pe
+# chalta hai (Settings -> Actions -> Runners -> New self-hosted runner, label: gpu).
+# Manually trigger: Actions tab -> eval-full -> Run workflow.
+name: eval-full
+
+on:
+  workflow_dispatch:
+    inputs:
+      register:
+        description: "Log run + register model in MLflow"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 90
+    env:
+      MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install -e ".[gpu,eval,mlops]"
+      - run: python -m faceai.models.download
+      - run: python -m dvc pull || true # remote configured ho to cache se data lo
+      - run: python -m dvc repro
+      - run: python -m faceai.eval.gate
+      - if: ${{ inputs.register }}
+        run: python -m faceai.registry log
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports
+          path: |
+            reports/eval/
+            dvc.lock

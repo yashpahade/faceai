@@ -10,7 +10,7 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 3 | Experiment tracking + model registry: MLflow | ✅ done |
 | 4 | Serving: batching, performance | ✅ done |
 | 5 | CI/CD with eval gate: GitHub Actions | ✅ done |
-| 6 | Monitoring + drift: Prometheus, Grafana | |
+| 6 | Monitoring + drift: Prometheus, Grafana | ✅ done |
 | 7 | Trust & safety: liveness, encryption, data deletion | |
 
 Learning notes per phase: [`docs/`](docs/). Old code for reference: [`legacy/`](legacy/).
@@ -30,6 +30,8 @@ src/faceai/
   registry.py       # MLflow: log eval runs, model versions, candidate/champion aliases
   models/card.py    # model_card.json reader (serving knows which registered version it runs)
   serving/          # embedding micro-batcher, admission control (503 + Retry-After)
+  monitoring/       # Prometheus metrics (/metrics), drift detection (PSI)
+deploy/             # Prometheus config + alert rules, Grafana datasource + dashboard
 tests/              # pytest
 legacy/             # pre-refactor code (read-only reference)
 dvc.yaml, dvc.lock # evaluation pipeline + exact record of its inputs/outputs
@@ -99,9 +101,18 @@ Details: [`docs/phase-5-cicd.md`](docs/phase-5-cicd.md).
 ## Docker
 
 ```powershell
-docker compose up --build
+docker compose up --build                    # api + prometheus + grafana
 curl http://127.0.0.1:8000/health/ready
 ```
+
+| Service | URL |
+|---|---|
+| API docs | http://127.0.0.1:8000/docs |
+| Metrics | http://127.0.0.1:8000/metrics |
+| Prometheus (alerts) | http://127.0.0.1:9090/alerts |
+| Grafana (dashboard "FaceAI") | http://127.0.0.1:3000 (admin / `GRAFANA_ADMIN_PASSWORD`) |
+
+Monitoring and drift detection: [`docs/phase-6-monitoring.md`](docs/phase-6-monitoring.md).
 
 ## Endpoints
 
@@ -109,7 +120,8 @@ curl http://127.0.0.1:8000/health/ready
 |---|---|---|
 | GET | `/health/live` | Liveness: is the process alive? |
 | GET | `/health/ready` | Readiness: are models loaded? 503 if not |
-| GET | `/version` | App version, model id, device |
+| GET | `/version` | App version, model id + registry version, device |
+| GET | `/metrics` | Prometheus metrics (keep internal) |
 | POST | `/v1/persons` | Create person `{"name": "..."}` |
 | GET | `/v1/persons` | List persons |
 | GET / DELETE | `/v1/persons/{id}` | Get / delete person (+ all embeddings) |

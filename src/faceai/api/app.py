@@ -17,13 +17,16 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from faceai import __version__
 from faceai.api.routes import router
 from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
 from faceai.models.card import load_card
+from faceai.monitoring import metrics as m
+from faceai.monitoring.drift import DriftMonitor
 from faceai.service import RecognitionService
 from faceai.serving.batcher import MicroBatcher
 from faceai.serving.limiter import ConcurrencyLimiter
@@ -91,6 +94,12 @@ def create_app(
         app.state.limiter = ConcurrencyLimiter(
             settings.max_concurrent_inference, settings.max_queue_wait_ms
         )
+        # Drift (Phase 6): reference disk pe, taaki restart pe dobara na seekhna pade
+        app.state.drift = DriftMonitor(
+            settings.data_dir / "drift_reference.json",
+            reference_size=settings.drift_reference_size,
+            window_size=settings.drift_window_size,
+        )
         db = Database(settings.db_path)
         try:
             t0 = time.perf_counter()
@@ -129,6 +138,10 @@ def create_app(
             response = JSONResponse({"detail": "internal server error"}, status_code=500)
         latency_ms = (time.perf_counter() - start) * 1000
         response.headers["X-Request-ID"] = rid
+        # Route TEMPLATE (/v1/persons/{person_id}), asli path nahi: label cardinality bounded rahe
+        route = getattr(request.scope.get("route"), "path", "unmatched")
+        m.HTTP_REQUESTS.labels(request.method, route, str(response.status_code)).inc()
+        m.HTTP_LATENCY.labels(route).observe(latency_ms / 1000)
         logger.info(
             "%s %s -> %d (%.1f ms)",
             request.method,
@@ -151,6 +164,12 @@ def create_app(
             {"status": "ready" if is_ready else "not_ready"},
             status_code=200 if is_ready else 503,
         )
+
+    @app.get("/metrics", tags=["meta"], include_in_schema=False)
+    def metrics(request: Request) -> PlainTextResponse:
+        """Prometheus scrape endpoint (production mein sirf internal network pe expose karo)."""
+        m.refresh_gauges(request.app.state)
+        return PlainTextResponse(generate_latest(m.REGISTRY), media_type=CONTENT_TYPE_LATEST)
 
     @app.get("/version", tags=["meta"])
     def version(request: Request) -> dict:

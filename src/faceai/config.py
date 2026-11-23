@@ -81,6 +81,10 @@ class Settings(BaseSettings):
         default=0, ge=0, description="CPU threads per ONNX session; 0 = ORT default (all cores)"
     )
 
+    # --- Monitoring (Phase 6) ---
+    drift_reference_size: int = Field(default=500, ge=50, description="reference window (faces)")
+    drift_window_size: int = Field(default=500, ge=50, description="rolling current window (faces)")
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "faceai.db"

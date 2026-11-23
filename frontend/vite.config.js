@@ -1,10 +1,14 @@
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Dev: /v1 aur /health requests FastAPI (port 8000) pe proxy -> same-origin, CORS ki zaroorat nahi.
-export default defineConfig({
+// `npm run dev:phone` (mode "phone"): self-signed HTTPS, taaki phone LAN pe camera chala sake
+// (getUserMedia sirf HTTPS ya localhost pe milta hai).
+export default defineConfig(({ mode }) => ({
   plugins: [
+    ...(mode === "phone" ? [basicSsl()] : []),
     react(),
     VitePWA({
       registerType: "autoUpdate",
@@ -45,4 +49,4 @@ export default defineConfig({
     proxy: { "/v1": "http://127.0.0.1:8000", "/health": "http://127.0.0.1:8000" },
   },
   test: { environment: "jsdom", setupFiles: ["./src/test-setup.js"], globals: true },
-});
+}));

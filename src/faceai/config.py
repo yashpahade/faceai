@@ -85,6 +85,31 @@ class Settings(BaseSettings):
     drift_reference_size: int = Field(default=500, ge=50, description="reference window (faces)")
     drift_window_size: int = Field(default=500, ge=50, description="rolling current window (faces)")
 
+    # --- Trust & safety (Phase 7) ---
+    encryption_keys: str | None = Field(
+        default=None,
+        repr=False,  # logs/tracebacks mein key kabhi na chhape
+        description="'<b64>' ya '2:<new>,1:<old>'; embeddings AES-GCM encrypted at rest",
+    )
+    api_key_hashes: str = Field(
+        default="", repr=False, description="comma-separated SHA-256 hashes of API keys"
+    )
+    auth: Literal["auto", "required", "off"] = Field(
+        default="auto", description="auto = prod mein required, warna off"
+    )
+    liveness: Literal["off", "required"] = "off"
+    retention_days: int | None = Field(
+        default=None, ge=1, description="isse purani embeddings startup pe purge"
+    )
+
+    @property
+    def auth_required(self) -> bool:
+        return self.auth == "required" or (self.auth == "auto" and self.env == "prod")
+
+    @property
+    def api_key_hash_list(self) -> list[str]:
+        return [h.strip() for h in self.api_key_hashes.split(",") if h.strip()]
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "faceai.db"

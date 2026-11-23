@@ -7,7 +7,7 @@ from tests.fakes import DIM, identity_vector
 
 def test_db_person_lifecycle_and_cascade(tmp_path):
     db = Database(tmp_path / "t.db")
-    p = db.create_person("Asha")
+    p = db.create_person("Asha", consent=True)
     e1 = db.add_embedding(p.id, "m1", identity_vector(1), 0.9, 100.0)
     e2 = db.add_embedding(p.id, "m1", identity_vector(2), 0.9, 100.0)
     assert db.get_person(p.id).num_faces == 2
@@ -21,7 +21,7 @@ def test_db_person_lifecycle_and_cascade(tmp_path):
 
 def test_db_embeddings_filtered_by_model(tmp_path):
     db = Database(tmp_path / "t.db")
-    p = db.create_person("Ravi")
+    p = db.create_person("Ravi", consent=True)
     db.add_embedding(p.id, "old-model", identity_vector(1), 0.9, 100.0)
     db.add_embedding(p.id, "new-model", identity_vector(2), 0.9, 100.0)
     ids, pids, vecs = db.load_embeddings("new-model")
@@ -31,7 +31,7 @@ def test_db_embeddings_filtered_by_model(tmp_path):
 
 
 def test_db_persists_across_reopen(tmp_path):
-    Database(tmp_path / "t.db").create_person("Zoya")
+    Database(tmp_path / "t.db").create_person("Zoya", consent=True)
     assert [p.name for p in Database(tmp_path / "t.db").list_persons()] == ["Zoya"]
 
 

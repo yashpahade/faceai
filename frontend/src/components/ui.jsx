@@ -137,3 +137,22 @@ export function PageHeader({ title, subtitle, children }) {
 
 export const today = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD local
 export const daysAgo = (n) => new Date(Date.now() - n * 864e5).toLocaleDateString("en-CA");
+
+// Data ko taaza rakho: har `ms` pe (sirf tab dikh raha ho) + tab pe wapas aate hi.
+// Kiosk se attendance lagi -> admin overview khud update.
+export function usePolling(fn, ms = 15000) {
+  useEffect(() => {
+    let alive = true;
+    const run = () => alive && document.visibilityState === "visible" && fn();
+    const id = setInterval(run, ms);
+    const onVis = () => document.visibilityState === "visible" && run();
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", run);
+    return () => {
+      alive = false;
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", run);
+    };
+  }, [fn, ms]);
+}

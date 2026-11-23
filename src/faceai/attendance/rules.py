@@ -37,14 +37,15 @@ def decide(
     open_before_min: int,
 ) -> Decision:
     if str(now_local.weekday()) not in days.split(","):
-        return Decision(False, None, "no class today for this batch")
+        return Decision(False, None, "no class today")
     day = now_local.date()
     tz = now_local.tzinfo
     start_dt = datetime.combine(day, _t(start), tz)
     end_dt = datetime.combine(day, _t(end), tz)
-    if now_local < start_dt - timedelta(minutes=open_before_min):
-        return Decision(False, None, f"attendance opens at {start} - {open_before_min} min")
+    opens = start_dt - timedelta(minutes=open_before_min)
+    if now_local < opens:
+        return Decision(False, None, f"attendance opens at {opens:%H:%M}")
     if now_local > end_dt:
-        return Decision(False, None, "class is over")
+        return Decision(False, None, f"class ended at {end}")
     late = now_local > start_dt + timedelta(minutes=late_after_min)
     return Decision(True, "late" if late else "present", "ok")

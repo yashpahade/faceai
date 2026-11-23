@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import LivenessFlow from "../components/LivenessFlow";
 import { Aurora, ease, spring, toast } from "../components/motion";
+import { ThemeToggle } from "../components/ThemePicker";
 import { ErrorBox } from "../components/ui";
 import { useAuth } from "../store/auth";
 
@@ -18,6 +19,7 @@ export function AuthShell({ children, title, subtitle }) {
   return (
     <div className="relative min-h-screen">
       <Aurora />
+      <ThemeToggle className="absolute right-4 top-4 z-10 bg-white/60 backdrop-blur dark:bg-white/5" />
       <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-4 py-8 lg:grid-cols-[1.1fr_1fr] lg:px-8">
         <motion.div initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, ease }} className="hidden lg:block">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200/70 bg-white/60 px-3 py-1 text-xs font-semibold text-brand-700 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-brand-200">

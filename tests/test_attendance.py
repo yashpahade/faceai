@@ -212,7 +212,11 @@ def test_admin_crm_scan_manual_reports(app_client):
     assert c.get("/v1/admin/batches", headers=h).json()[0]["student_count"] == 1
 
     scan = c.post("/v1/admin/attendance/scan", files={"file": _png(42)}, headers=h).json()
-    assert [(s["full_name"], s["status"]) for s in scan] == [("Zoya", "present")]
+    assert scan["faces"] == 1 and scan["unknown"] == 0
+    assert [(s["full_name"], s["status"]) for s in scan["results"]] == [("Zoya", "present")]
+    # unknown face: reported, not silently dropped
+    unk = c.post("/v1/admin/attendance/scan", files={"file": _png(7)}, headers=h).json()
+    assert unk == {"faces": 1, "unknown": 1, "results": []}
 
     # manual override -> late, phir report
     c.post("/v1/admin/attendance/manual", json={"user_id": sid, "status": "late"}, headers=h)
@@ -225,7 +229,8 @@ def test_admin_crm_scan_manual_reports(app_client):
     # delete student -> biometric bhi gaya, face ab match nahi
     d = c.delete(f"/v1/admin/students/{sid}", headers=h).json()
     assert d["deleted_embeddings"] == 1
-    assert c.post("/v1/admin/attendance/scan", files={"file": _png(42)}, headers=h).json() == []
+    after = c.post("/v1/admin/attendance/scan", files={"file": _png(42)}, headers=h).json()
+    assert after["results"] == [] and after["unknown"] == 1
 
 
 def test_absent_rows_for_past_class_days(app_client):

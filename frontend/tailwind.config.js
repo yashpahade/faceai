@@ -1,32 +1,24 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
-  darkMode: "media",
+  darkMode: "class", // ThemePicker: system / light / dark (src/store/theme.js)
   theme: {
     extend: {
       fontFamily: {
         sans: ['"Inter Variable"', "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
       },
       colors: {
-        brand: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
-          800: "#3730a3",
-          900: "#312e81",
-        },
-        accent: { 400: "#c084fc", 500: "#a855f7", 600: "#9333ea" },
+        // Accent themes: colors CSS variables se (index.css), runtime pe badalte hain
+        brand: Object.fromEntries(
+          [50, 100, 200, 300, 400, 500, 600, 700, 800, 900].map((k) => [k, `rgb(var(--brand-${k}) / <alpha-value>)`]),
+        ),
+        accent: Object.fromEntries([400, 500, 600].map((k) => [k, `rgb(var(--accent-${k}) / <alpha-value>)`])),
         ink: { 950: "#070a13", 900: "#0b1020", 850: "#10162a", 800: "#151c33" },
       },
       boxShadow: {
         soft: "0 1px 2px rgba(15,23,42,.04), 0 8px 24px -8px rgba(15,23,42,.12)",
-        lift: "0 2px 4px rgba(15,23,42,.06), 0 20px 40px -16px rgba(79,70,229,.35)",
-        glow: "0 0 0 1px rgba(129,140,248,.25), 0 10px 40px -10px rgba(99,102,241,.55)",
+        lift: "0 2px 4px rgba(15,23,42,.06), 0 20px 40px -16px rgb(var(--brand-600) / .35)",
+        glow: "0 0 0 1px rgb(var(--brand-400) / .25), 0 10px 40px -10px rgb(var(--brand-500) / .55)",
       },
       borderRadius: { "2.5xl": "1.25rem" },
       keyframes: {

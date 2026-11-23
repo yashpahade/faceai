@@ -138,6 +138,12 @@ class MarkOut(BaseModel):
     confidence: float | None = None
 
 
+class ScanOut(BaseModel):
+    faces: int = Field(description="faces detected in the frame")
+    unknown: int = Field(description="faces not matching any enrolled student")
+    results: list[MarkOut]
+
+
 class SelfMarkIn(BaseModel):
     liveness_token: str
 

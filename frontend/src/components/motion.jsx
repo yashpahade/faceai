@@ -70,8 +70,8 @@ export function ProgressRing({ value = 0, size = 132, stroke = 12, label }) {
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <defs>
           <linearGradient id="ring-good" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#a855f7" />
+            <stop offset="0%" stopColor="rgb(var(--brand-500))" />
+            <stop offset="100%" stopColor="rgb(var(--accent-500))" />
           </linearGradient>
         </defs>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-slate-200 dark:stroke-white/10" />
@@ -112,7 +112,7 @@ export function SuccessBurst({ title, subtitle, tone = "green" }) {
             <motion.span
               key={i}
               className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full"
-              style={{ background: i % 2 ? color : "#8b5cf6" }}
+              style={{ background: i % 2 ? color : "rgb(var(--brand-500))" }}
               initial={{ x: -4, y: -4, opacity: 1, scale: 1 }}
               animate={{ x: Math.cos(a) * 58 - 4, y: Math.sin(a) * 58 - 4, opacity: 0, scale: 0.4 }}
               transition={{ duration: 0.9, ease, delay: 0.15 }}

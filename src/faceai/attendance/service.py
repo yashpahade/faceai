@@ -262,13 +262,17 @@ class AttendanceService:
             if u.status != "active":
                 return MarkResult(u.id, u.full_name, "rejected", "student inactive", confidence)
             if u.batch is None:
-                return MarkResult(u.id, u.full_name, "rejected", "no batch assigned", confidence)
+                return MarkResult(
+                    u.id, u.full_name, "rejected", "not in any batch (assign one)", confidence
+                )
             b = u.batch
             d = decide(
                 now_local, b.start_time, b.end_time, b.days, b.late_after_min, b.open_before_min
             )
             if not d.allowed:
-                return MarkResult(u.id, u.full_name, "rejected", d.reason, confidence)
+                return MarkResult(
+                    u.id, u.full_name, "rejected", f"{b.name}: {d.reason}", confidence
+                )
             existing = db.scalar(
                 select(Attendance).where(
                     Attendance.user_id == u.id,
@@ -309,18 +313,23 @@ class AttendanceService:
             return MarkResult(user_id, name, "rejected", "face does not match your account")
         return self.mark(user_id, "face", "self", round(hit[1], 4))
 
-    def scan(self, image_bgr, marked_by: str) -> list[MarkResult]:
-        """Admin live camera / kiosk: photo ke saare pehchaane gaye students mark."""
+    def scan(self, image_bgr, marked_by: str) -> dict:
+        """Admin live camera / kiosk: photo ke saare pehchaane gaye students mark.
+        UI ko HAR frame ka hisaab chahiye (kitne chehre, kitne anjaan), warna "kuch nahi hua"
+        aur "chehra pehchana nahi" mein farak nahi dikhta."""
         res = self.bio.recognize(image_bgr, top_k=1)
-        out = []
+        out: list[MarkResult] = []
+        unknown = 0
         for f in res.faces:
-            if f.match is None:
+            u = None
+            if f.match is not None:
+                with self.sessions() as db:
+                    u = db.scalar(select(User).where(User.person_id == f.match.person_id))
+            if u is None:
+                unknown += 1
                 continue
-            with self.sessions() as db:
-                u = db.scalar(select(User).where(User.person_id == f.match.person_id))
-            if u is not None:
-                out.append(self.mark(u.id, "face", marked_by, f.match.similarity))
-        return out
+            out.append(self.mark(u.id, "face", marked_by, f.match.similarity))
+        return {"faces": len(res.faces), "unknown": unknown, "results": out}
 
     def manual(self, user_id: str, day: date, status: str, admin_id: str) -> Attendance | None:
         """Admin override: upsert. status='absent' => record hatao."""

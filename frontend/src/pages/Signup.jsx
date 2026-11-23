@@ -4,8 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { api, fd } from "../api/client";
 import FaceCamera from "../components/FaceCamera";
+import Field, { PasswordChecklist } from "../components/Field";
 import { SuccessBurst, toast } from "../components/motion";
 import { ErrorBox } from "../components/ui";
+import { nameError, passwordChecks, passwordError, phoneError, sanitizeName, sanitizePhone } from "../lib/validate";
 import { useAuth } from "../store/auth";
 import { AuthShell } from "./Login";
 
@@ -49,6 +51,8 @@ export default function Signup() {
 
   async function register(e) {
     e.preventDefault();
+    setTouched({ full_name: true, email: true, phone: true, password: true });
+    if (!valid) return;
     setBusy(true);
     setError(null);
     try {
@@ -79,33 +83,35 @@ export default function Signup() {
     }
   }
 
-  const pwStrength = Math.min(4, [/.{8,}/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((r) => r.test(form.password)).length);
+  const [touched, setTouched] = useState({});
+  const touch = (k) => () => setTouched((t) => ({ ...t, [k]: true }));
+  const errs = {
+    full_name: nameError(form.full_name),
+    email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email) ? null : "Enter a valid email",
+    phone: phoneError(form.phone),
+    password: passwordError(form.password),
+  };
+  const valid = !Object.values(errs).some(Boolean) && form.consent;
 
   return (
     <AuthShell title="Create your account" subtitle="Two quick steps, under a minute">
       <Steps step={step} />
       <AnimatePresence mode="wait">
         {step === 1 ? (
-          <motion.form key="s1" onSubmit={register} className="space-y-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            {[
-              ["full_name", "Full name", "text", "name", "Asha Rao"],
-              ["email", "Email", "email", "email", "asha@school.in"],
-              ["phone", "Phone (optional)", "tel", "tel", "+91 98xxxxxx"],
-            ].map(([k, label, type, ac, ph]) => (
-              <div key={k}>
-                <label className="label" htmlFor={k}>{label}</label>
-                <input id={k} className="input" type={type} autoComplete={ac} placeholder={ph} required={k !== "phone"} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} />
-              </div>
-            ))}
-            <div>
-              <label className="label" htmlFor="password">Password</label>
-              <input id="password" className="input" type="password" autoComplete="new-password" minLength={8} required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-              <div className="mt-2 grid grid-cols-4 gap-1" aria-hidden="true">
-                {[0, 1, 2, 3].map((i) => (
-                  <motion.span key={i} className="h-1 rounded-full" animate={{ backgroundColor: i < pwStrength ? ["#ef4444", "#f59e0b", "#6366f1", "#10b981"][pwStrength - 1] : "#e2e8f0" }} />
-                ))}
-              </div>
-            </div>
+          <motion.form key="s1" onSubmit={register} noValidate className="space-y-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+            <Field id="full_name" label="Full name" error={errs.full_name} touched={touched.full_name}>
+              <input id="full_name" className="input" autoComplete="name" placeholder="Asha Rao" value={form.full_name} aria-invalid={!!(touched.full_name && errs.full_name)} onBlur={touch("full_name")} onChange={(e) => setForm({ ...form, full_name: sanitizeName(e.target.value) })} />
+            </Field>
+            <Field id="email" label="Email" error={errs.email} touched={touched.email}>
+              <input id="email" className="input" type="email" autoComplete="email" placeholder="asha@school.in" value={form.email} onBlur={touch("email")} onChange={(e) => setForm({ ...form, email: e.target.value.trim() })} />
+            </Field>
+            <Field id="phone" label="Mobile (optional)" error={errs.phone} touched={touched.phone} hint="10 digits, e.g. 98765 43210">
+              <input id="phone" className="input" type="tel" inputMode="numeric" autoComplete="tel" placeholder="98765 43210" maxLength={13} value={form.phone} onBlur={touch("phone")} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
+            </Field>
+            <Field id="password" label="Password" error={errs.password} touched={touched.password}>
+              <input id="password" className="input" type="password" autoComplete="new-password" value={form.password} onBlur={touch("password")} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+              <PasswordChecklist checks={passwordChecks(form.password)} />
+            </Field>
             <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white/60 p-3.5 text-sm dark:border-white/10 dark:bg-white/5">
               <input type="checkbox" className="mt-0.5 h-5 w-5 accent-brand-600" required checked={form.consent} onChange={(e) => setForm({ ...form, consent: e.target.checked })} />
               <span className="text-slate-600 dark:text-slate-300">

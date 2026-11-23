@@ -134,7 +134,7 @@ def test_student_cannot_use_admin_routes(app_client):
     c = app_client
     t = c.post(
         "/v1/auth/signup",
-        json={"email": "s@x.in", "password": "password123", "full_name": "S", "consent": True},
+        json={"email": "s@x.in", "password": "password123", "full_name": "Sam", "consent": True},
     ).json()["access_token"]
     assert c.get("/v1/admin/students", headers={"Authorization": f"Bearer {t}"}).status_code == 403
 
@@ -239,7 +239,7 @@ def test_absent_rows_for_past_class_days(app_client):
     batch = _always_open_batch(c, h)
     sid = c.post(
         "/v1/admin/students",
-        json={"email": "a@x.in", "full_name": "A", "batch_id": batch, "consent": True},
+        json={"email": "a@x.in", "full_name": "Anu", "batch_id": batch, "consent": True},
         headers=h,
     ).json()["student"]["id"]
     svc = c.app.state.attendance
@@ -254,7 +254,7 @@ def test_password_change_invalidates_old_tokens(app_client):
     h = _admin(c)
     t = c.post(
         "/v1/auth/signup",
-        json={"email": "p@x.in", "password": "password123", "full_name": "P", "consent": True},
+        json={"email": "p@x.in", "password": "password123", "full_name": "Pia", "consent": True},
     ).json()
     old = {"Authorization": f"Bearer {t['access_token']}"}
     c.patch(f"/v1/admin/students/{t['user']['id']}", json={"password": "newpassword1"}, headers=h)
@@ -266,3 +266,68 @@ def test_csv_formula_injection_neutralized():
 
     assert _csv_safe("=HYPERLINK(evil)") == "'=HYPERLINK(evil)"
     assert _csv_safe("Asha") == "Asha"
+
+
+# ---------- input rules (name / mobile / password / roll) ----------
+@pytest.mark.parametrize(
+    "fn,raw,expected",
+    [
+        ("name", "  Asha   Rao ", "Asha Rao"),
+        ("name", "D'Souza-Pinto", "D'Souza-Pinto"),
+        ("name", "अमित कुमार", "अमित कुमार"),
+        ("phone", "98765 43210", "+919876543210"),
+        ("phone", "+91-98765-43210", "+919876543210"),
+        ("phone", "09876543210", "+919876543210"),
+        ("phone", "", None),
+        ("password", "asha2026", "asha2026"),
+        ("roll", "r-01/a", "R-01/A"),
+    ],
+)
+def test_input_rules_accept_and_normalize(fn, raw, expected):
+    from faceai.attendance import validators as v
+
+    f = {
+        "name": v.clean_name,
+        "phone": v.clean_phone,
+        "password": v.check_password,
+        "roll": v.clean_roll,
+    }[fn]
+    assert f(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "fn,raw,msg",
+    [
+        ("name", "Asha123", "cannot contain numbers"),
+        ("name", "A", "at least 2"),
+        ("name", "-.", "at least 2"),
+        ("name", "Asha@Rao", "only letters"),
+        ("phone", "98abc43210", "only digits"),
+        ("phone", "12345", "valid 10-digit"),
+        ("phone", "5876543210", "valid 10-digit"),  # 5 se shuru: Indian mobile nahi
+        ("password", "password", "one number"),
+        ("password", "12345678", "one letter"),
+        ("password", "ab1", "at least 8"),
+        ("roll", "R@01", "only letters, numbers"),
+    ],
+)
+def test_input_rules_reject(fn, raw, msg):
+    from faceai.attendance import validators as v
+
+    f = {
+        "name": v.clean_name,
+        "phone": v.clean_phone,
+        "password": v.check_password,
+        "roll": v.clean_roll,
+    }[fn]
+    with pytest.raises(ValueError, match=msg):
+        f(raw)
+
+
+def test_signup_api_enforces_rules(app_client):
+    base = {"email": "r@x.in", "password": "password123", "full_name": "Ravi", "consent": True}
+    for bad in ({"full_name": "Ravi2"}, {"phone": "12345"}, {"password": "onlyletters"}):
+        r = app_client.post("/v1/auth/signup", json={**base, **bad})
+        assert r.status_code == 422, bad
+    ok = app_client.post("/v1/auth/signup", json={**base, "phone": "98765 43210"})
+    assert ok.status_code == 201 and ok.json()["user"]["phone"] == "+919876543210"

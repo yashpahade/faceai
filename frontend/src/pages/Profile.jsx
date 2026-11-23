@@ -2,8 +2,10 @@ import { useRef, useState } from "react";
 
 import { api, fd } from "../api/client";
 import FaceCamera from "../components/FaceCamera";
+import Field from "../components/Field";
 import ThemePicker from "../components/ThemePicker";
 import { ErrorBox, PageHeader } from "../components/ui";
+import { nameError, phoneError, sanitizeName, sanitizePhone } from "../lib/validate";
 import { useAuth } from "../store/auth";
 
 export default function Profile() {
@@ -15,9 +17,11 @@ export default function Profile() {
   const [busy, setBusy] = useState(false);
   const cam = useRef(null);
 
+  const errs = { full_name: nameError(form.full_name), phone: phoneError(form.phone) };
   async function save(e) {
     e.preventDefault();
     setError(null);
+    if (errs.full_name || errs.phone) return setError(errs.full_name || errs.phone);
     try {
       setUser(await api("/v1/me", { method: "PATCH", json: { full_name: form.full_name, phone: form.phone || null } }));
       setMsg("Profile saved");
@@ -50,14 +54,12 @@ export default function Profile() {
       <ErrorBox error={error} />
 
       <form onSubmit={save} className="card space-y-4 p-5">
-        <div>
-          <label className="label" htmlFor="name">Full name</label>
-          <input id="name" className="input" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required />
-        </div>
-        <div>
-          <label className="label" htmlFor="phone">Phone</label>
-          <input id="phone" className="input" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-        </div>
+        <Field id="name" label="Full name" error={errs.full_name} touched>
+          <input id="name" className="input" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: sanitizeName(e.target.value) })} />
+        </Field>
+        <Field id="phone" label="Mobile" error={errs.phone} touched hint="10 digits">
+          <input id="phone" className="input" type="tel" inputMode="numeric" maxLength={13} value={form.phone} onChange={(e) => setForm({ ...form, phone: sanitizePhone(e.target.value) })} />
+        </Field>
         <p className="text-sm text-slate-500">Email: {user.email}</p>
         <button className="btn-primary">Save</button>
       </form>

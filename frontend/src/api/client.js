@@ -7,7 +7,9 @@ export class ApiError extends Error {
       typeof detail === "string"
         ? detail
         : detail?.message ||
-          (Array.isArray(detail) ? detail.map((d) => d.msg).join("; ") : `Request failed (${status})`);
+          (Array.isArray(detail)
+            ? detail.map((d) => d.msg.replace(/^Value error, /, "").replace(/^./, (c) => c.toUpperCase())).join("; ")
+            : `Request failed (${status})`);
     super(msg);
     this.status = status;
     this.detail = detail;

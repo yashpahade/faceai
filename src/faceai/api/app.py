@@ -23,6 +23,7 @@ from faceai import __version__
 from faceai.api.routes import router
 from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
+from faceai.models.card import load_card
 from faceai.service import RecognitionService
 from faceai.store.db import Database
 from faceai.vision.types import FaceEngineProtocol
@@ -55,11 +56,16 @@ def create_app(
         logger.info("starting faceai v%s (env=%s)", __version__, settings.env)
         app.state.settings = settings
         app.state.service = None
+        app.state.model_card = None
         app.state.ready = False
         db = Database(settings.db_path)
         try:
             t0 = time.perf_counter()
             eng = engine or _build_engine(settings)
+            # Registry version info (Phase 3). Fake engine (tests) ke saath card nahi padhte.
+            app.state.model_card = (
+                None if engine else load_card(settings.models_dir / settings.model_pack)
+            )
             app.state.service = RecognitionService(eng, db, settings)
             app.state.ready = True
             logger.info(
@@ -112,13 +118,18 @@ def create_app(
 
     @app.get("/version", tags=["meta"])
     def version(request: Request) -> dict:
-        # Phase 3: model version MLflow registry se aayega
         svc = getattr(request.app.state, "service", None)
+        card = getattr(request.app.state, "model_card", None) or {}
         return {
             "app_version": __version__,
             "env": settings.env,
             "model_id": svc.engine.model_id if svc else None,
             "device": svc.engine.device if svc else None,
+            # MLflow registry version (models/<pack>/model_card.json se; null = unregistered)
+            "model_version": card.get("version"),
+            "model_alias": card.get("alias"),
+            "match_threshold": settings.match_threshold,
+            "recommended_threshold": (card.get("recommended_threshold") or {}).get("threshold"),
         }
 
     return app

@@ -6,6 +6,7 @@ import AttendanceTable from "../../components/AttendanceTable";
 import FaceCamera from "../../components/FaceCamera";
 import { ErrorBox, PageHeader, Spinner, StatsCard, useBatches } from "../../components/ui";
 import { compressFile } from "../../lib/image";
+import { useAuth } from "../../store/auth";
 
 export default function StudentDetail() {
   const { id } = useParams();
@@ -17,6 +18,7 @@ export default function StudentDetail() {
   const [msg, setMsg] = useState(null);
   const [camOpen, setCamOpen] = useState(false);
   const cam = useRef(null);
+  const isAdmin = useAuth((st) => st.user?.role === "admin");
 
   const load = () => {
     api(`/v1/admin/students/${id}`).then(setS).catch((e) => setError(e.message));
@@ -66,9 +68,7 @@ export default function StudentDetail() {
   const count = (st) => rows.filter((r) => r.status === st).length;
   return (
     <div className="space-y-6">
-      <PageHeader title={s.full_name}>
-        <button className="btn-danger" onClick={remove}>Delete</button>
-      </PageHeader>
+      <PageHeader title={s.full_name}>{isAdmin && <button className="btn-danger" onClick={remove}>Delete</button>}</PageHeader>
       {msg && <p className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">{msg}</p>}
       <ErrorBox error={error} />
 
@@ -76,7 +76,7 @@ export default function StudentDetail() {
         <div className="card space-y-3 p-4">
           <h2 className="font-semibold">Details</h2>
           <p className="text-sm text-slate-500">{s.email}{s.phone ? ` · ${s.phone}` : ""} · enrolled {s.enrollment_date}</p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <fieldset disabled={!isAdmin} className="grid gap-3 disabled:opacity-70 sm:grid-cols-2">
             <div>
               <label className="label" htmlFor="roll">Roll no</label>
               <input id="roll" className="input" defaultValue={s.roll_no || ""} onBlur={(e) => e.target.value !== (s.roll_no || "") && save({ roll_no: e.target.value || null })} />
@@ -95,7 +95,7 @@ export default function StudentDetail() {
                 <option value="inactive">Inactive</option>
               </select>
             </div>
-          </div>
+          </fieldset>
         </div>
 
         <div className="card space-y-3 p-4">

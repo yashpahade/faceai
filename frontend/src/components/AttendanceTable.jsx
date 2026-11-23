@@ -41,6 +41,8 @@ export default function AttendanceTable({ rows, showStudent = true, actions }) {
           <option value="present">Present</option>
           <option value="late">Late</option>
           <option value="absent">Absent</option>
+          <option value="leave">Leave</option>
+          <option value="holiday">Holiday</option>
         </select>
       </div>
       <p className="text-xs text-slate-500">{view.length} records</p>

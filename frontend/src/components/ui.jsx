@@ -51,6 +51,10 @@ const STATUS = {
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
   active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
   inactive: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  holiday: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200",
+  leave: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200",
+  pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
+  approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
 };
 
 export function StatusBadge({ status }) {

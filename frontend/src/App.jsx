@@ -19,11 +19,18 @@ const Attendance = lazy(() => import("./pages/admin/Attendance"));
 const Live = lazy(() => import("./pages/admin/Live"));
 const Reports = lazy(() => import("./pages/admin/Reports"));
 const Batches = lazy(() => import("./pages/admin/Batches"));
+const Teachers = lazy(() => import("./pages/admin/Teachers"));
+const Holidays = lazy(() => import("./pages/admin/Holidays"));
+const Leaves = lazy(() => import("./pages/admin/Leaves"));
+
+export const homeFor = (role) => (role === "student" ? "/dashboard" : "/admin");
+const STAFF = ["admin", "teacher"];
 
 function Guard({ role, children }) {
   const { token, user } = useAuth();
   if (!token || !user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+  const allowed = !role || (Array.isArray(role) ? role.includes(user.role) : user.role === role);
+  if (!allowed) return <Navigate to={homeFor(user.role)} replace />;
   return (
     <Layout>
       <Suspense fallback={<Spinner />}>
@@ -35,19 +42,23 @@ function Guard({ role, children }) {
 
 function Home() {
   const user = useAuth((s) => s.user);
-  return <Navigate to={!user ? "/login" : user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+  return <Navigate to={!user ? "/login" : homeFor(user.role)} replace />;
 }
 
 const PAGES = [
   ["/dashboard", "student", Dashboard],
   ["/profile", null, Profile],
-  ["/admin", "admin", AdminOverview],
-  ["/admin/students", "admin", Students],
-  ["/admin/students/:id", "admin", StudentDetail],
-  ["/admin/attendance", "admin", Attendance],
-  ["/admin/live", "admin", Live],
-  ["/admin/reports", "admin", Reports],
+  // teacher = staff, but server-side scoped to assigned batches
+  ["/admin", STAFF, AdminOverview],
+  ["/admin/students", STAFF, Students],
+  ["/admin/students/:id", STAFF, StudentDetail],
+  ["/admin/attendance", STAFF, Attendance],
+  ["/admin/live", STAFF, Live],
+  ["/admin/reports", STAFF, Reports],
+  ["/admin/leaves", STAFF, Leaves],
   ["/admin/batches", "admin", Batches],
+  ["/admin/teachers", "admin", Teachers],
+  ["/admin/holidays", "admin", Holidays],
 ];
 
 export default function App() {

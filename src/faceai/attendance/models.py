@@ -15,12 +15,15 @@ import uuid
 from datetime import UTC, date, datetime
 
 from sqlalchemy import (
+    Column,
     Date,
     DateTime,
     Float,
     ForeignKey,
     Integer,
     String,
+    Table,
+    Text,
     UniqueConstraint,
     create_engine,
     event,
@@ -39,6 +42,15 @@ def _now() -> datetime:
 
 class Base(DeclarativeBase):
     pass
+
+
+# Teacher <-> batch (many-to-many). Teacher sirf in batches ka data dekh/mark kar sakta hai.
+batch_teachers = Table(
+    "batch_teachers",
+    Base.metadata,
+    Column("batch_id", ForeignKey("batches.id", ondelete="CASCADE"), primary_key=True),
+    Column("teacher_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class Batch(Base):
@@ -63,7 +75,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(10), default="student")  # admin | student
+    role: Mapped[str] = mapped_column(String(10), default="student")  # admin | teacher | student
     full_name: Mapped[str] = mapped_column(String(100))
     phone: Mapped[str | None] = mapped_column(String(20))
     roll_no: Mapped[str | None] = mapped_column(String(30))
@@ -78,6 +90,8 @@ class User(Base):
     token_version: Mapped[int] = mapped_column(Integer, default=0)
 
     batch: Mapped[Batch | None] = relationship(back_populates="students")
+    # role == "teacher": kaunse batches padhata hai
+    teaching: Mapped[list[Batch]] = relationship(secondary=batch_teachers)
 
 
 class Attendance(Base):
@@ -97,6 +111,38 @@ class Attendance(Base):
 
     user: Mapped[User] = relationship()
     batch: Mapped[Batch] = relationship()
+
+
+class Holiday(Base):
+    """Is din class nahi: absent count nahi hota, attendance mark nahi hoti.
+    batch_id NULL = saare batches (e.g. Diwali); warna sirf us batch ke liye."""
+
+    __tablename__ = "holidays"
+    __table_args__ = (UniqueConstraint("day", "batch_id", name="uq_holiday_day_batch"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    batch_id: Mapped[str | None] = mapped_column(ForeignKey("batches.id", ondelete="CASCADE"))
+    created_by: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Leave(Base):
+    """Student leave request. Sirf APPROVED leave ke din absent nahi gine jaate."""
+
+    __tablename__ = "leaves"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    start: Mapped[date] = mapped_column(Date)
+    end: Mapped[date] = mapped_column(Date)
+    reason: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending|approved|rejected
+    decided_by: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    user: Mapped[User] = relationship()
 
 
 def make_engine(url: str) -> Engine:

@@ -85,6 +85,7 @@ export default function Reports() {
                   <th className="px-4 py-3 text-right">Present</th>
                   <th className="px-4 py-3 text-right">Late</th>
                   <th className="px-4 py-3 text-right">Absent</th>
+                  <th className="px-4 py-3 text-right">Leave</th>
                   <th className="px-4 py-3 text-right">%</th>
                 </tr>
               </thead>
@@ -96,6 +97,7 @@ export default function Reports() {
                     <td className="px-4 py-2 text-right tabular-nums">{s.present}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{s.late}</td>
                     <td className="px-4 py-2 text-right tabular-nums">{s.absent}</td>
+                    <td className="px-4 py-2 text-right tabular-nums">{s.leave}</td>
                     <td className={`px-4 py-2 text-right font-semibold tabular-nums ${s.attendance_pct != null && s.attendance_pct < 75 ? "text-red-600" : ""}`}>
                       {s.attendance_pct ?? "—"}
                     </td>
@@ -105,7 +107,7 @@ export default function Reports() {
             </table>
             {data.students.length === 0 && <p className="p-4 text-sm text-slate-500">No data in this range.</p>}
           </div>
-          <p className="text-xs text-slate-500">Below 75% is highlighted (common minimum attendance rule).</p>
+          <p className="text-xs text-slate-500">% = (present + late) ÷ (present + late + absent). Approved leave and holidays are not counted. Below 75% is highlighted.</p>
         </>
       )}
     </div>

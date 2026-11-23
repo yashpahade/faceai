@@ -193,3 +193,79 @@ class RecordOut(BaseModel):
     method: str | None
     confidence: float | None
     marked_at: str | None
+
+
+# ---------- bulk import (#4) ----------
+class ImportRow(_InputRules):
+    """Ek CSV row. Same rules jaise signup/admin create (validators.py)."""
+
+    full_name: str = Field(max_length=100)
+    email: str = Field(pattern=EMAIL, max_length=255)
+    phone: str | None = None
+    roll_no: str | None = Field(default=None, max_length=30)
+    batch: str | None = Field(default=None, max_length=100, description="batch NAME (not id)")
+
+    @field_validator("batch")
+    @classmethod
+    def _blank_batch(cls, v):
+        return v.strip() or None if v else None
+
+
+class ImportResult(BaseModel):
+    rows: int
+    valid: int
+    errors: list[dict]
+    created: list[dict] = Field(description="temporary passwords: shown ONCE")
+
+
+# ---------- teachers (#7) ----------
+class TeacherCreate(_InputRules):
+    email: str = Field(pattern=EMAIL, max_length=255)
+    full_name: str = Field(max_length=100)
+    phone: str | None = None
+    password: str | None = Field(default=None, max_length=128)
+    batch_ids: list[str] = Field(default_factory=list)
+
+
+class TeacherOut(UserOut):
+    batch_ids: list[str] = []
+
+
+class BatchIdsIn(BaseModel):
+    batch_ids: list[str]
+
+
+# ---------- holidays + leave (#8) ----------
+class HolidayIn(BaseModel):
+    day: date
+    name: str = Field(min_length=1, max_length=100)
+    batch_id: str | None = Field(default=None, description="null = all batches")
+
+
+class HolidayOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    day: date
+    name: str
+    batch_id: str | None
+
+
+class LeaveIn(BaseModel):
+    start: date
+    end: date
+    reason: str = Field(min_length=3, max_length=500)
+
+
+class LeaveOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: str
+    start: date
+    end: date
+    reason: str
+    status: str
+    full_name: str | None = None
+
+
+class LeaveDecision(BaseModel):
+    approve: bool

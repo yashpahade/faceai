@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 
 import { api } from "../../api/client";
 import Field from "../../components/Field";
+import ImportStudents from "../../components/ImportStudents";
+import { useAuth } from "../../store/auth";
 import { Stagger, StaggerItem, toast } from "../../components/motion";
 import { nameError, phoneError, rollError, sanitizeName, sanitizePhone, sanitizeRoll } from "../../lib/validate";
 import { BatchSelector, EmptyState, ErrorBox, PageHeader, Spinner, StatusBadge, useBatches } from "../../components/ui";
@@ -17,6 +19,8 @@ export default function Students() {
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState(false);
   const [created, setCreated] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const isAdmin = useAuth((s) => s.user?.role === "admin");
 
   const load = () => {
     const p = new URLSearchParams();
@@ -33,9 +37,15 @@ export default function Students() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Students">
-        <button className="btn-primary" onClick={() => setAdding(true)}>+ Add student</button>
+      <PageHeader title="Students" subtitle={isAdmin ? null : "Students in your batches"}>
+        {isAdmin && (
+          <>
+            <button className="btn-secondary" onClick={() => setImporting(true)}>Import CSV</button>
+            <button className="btn-primary" onClick={() => setAdding(true)}>+ Add student</button>
+          </>
+        )}
       </PageHeader>
+      <AnimatePresence>{importing && <ImportStudents onClose={() => setImporting(false)} onDone={load} />}</AnimatePresence>
       {created && (
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="card border-emerald-300 bg-emerald-50 p-4 text-sm dark:bg-emerald-500/10">
           <b>{created.student.full_name}</b> added. Temporary password (shown once): <code className="rounded bg-white px-1 dark:bg-slate-900">{created.temporary_password}</code>

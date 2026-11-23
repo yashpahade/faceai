@@ -1,0 +1,68 @@
+{
+  "device": "cuda",
+  "n_images": 7701,
+  "n_pairs": 6000,
+  "detector_ms_p50": {
+    "640": 18.46,
+    "1280": 137.12,
+    "clahe_640": 108.01
+  },
+  "variants": {
+    "baseline_640_thr0.5": {
+      "failure_to_detect_rate": 0.00143,
+      "kfold_accuracy": 0.99633,
+      "auc": 0.995724,
+      "eer": 0.006,
+      "tar_at_far_1e-4": 0.99333,
+      "tar_at_far_1e-3": 0.99333
+    },
+    "thr0.4": {
+      "failure_to_detect_rate": 0.00065,
+      "kfold_accuracy": 0.99733,
+      "auc": 0.997741,
+      "eer": 0.00433,
+      "tar_at_far_1e-4": 0.99533,
+      "tar_at_far_1e-3": 0.99533
+    },
+    "flip_tta": {
+      "failure_to_detect_rate": 0.00143,
+      "kfold_accuracy": 0.9965,
+      "auc": 0.995724,
+      "eer": 0.006,
+      "tar_at_far_1e-4": 0.99333,
+      "tar_at_far_1e-3": 0.99333
+    },
+    "det1280": {
+      "failure_to_detect_rate": 0.90222,
+      "kfold_accuracy": 0.50617,
+      "auc": 0.506166,
+      "eer": 0.49383,
+      "tar_at_far_1e-4": 0.00067,
+      "tar_at_far_1e-3": 0.00333
+    },
+    "multiscale_640+1280": {
+      "failure_to_detect_rate": 0.00143,
+      "kfold_accuracy": 0.99633,
+      "auc": 0.995724,
+      "eer": 0.006,
+      "tar_at_far_1e-4": 0.99333,
+      "tar_at_far_1e-3": 0.99333
+    },
+    "clahe": {
+      "failure_to_detect_rate": 0.00143,
+      "kfold_accuracy": 0.9965,
+      "auc": 0.995797,
+      "eer": 0.00633,
+      "tar_at_far_1e-4": 0.992,
+      "tar_at_far_1e-3": 0.99333
+    },
+    "clahe+flip_tta": {
+      "failure_to_detect_rate": 0.00143,
+      "kfold_accuracy": 0.9965,
+      "auc": 0.995779,
+      "eer": 0.00633,
+      "tar_at_far_1e-4": 0.99233,
+      "tar_at_far_1e-3": 0.99333
+    }
+  }
+}

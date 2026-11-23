@@ -53,7 +53,8 @@ class Settings(BaseSettings):
     det_size: int = Field(default=640, ge=160, le=1280, description="detector input (square)")
 
     # --- Recognition (Phase 2 mein evaluation se tune hoga, abhi placeholder) ---
-    det_threshold: float = Field(default=0.5, ge=0.0, le=1.0)
+    # Phase A: 0.5 -> 0.4 (LFW: missed faces 0.14% -> 0.06%, TAR@1e-3 99.33 -> 99.53%)
+    det_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
     match_threshold: float = Field(
         default=0.4, ge=-1.0, le=1.0, description="cosine similarity; >= isse => same person"
     )

@@ -174,13 +174,12 @@ erDiagram
 ```mermaid
 flowchart LR
     IMG["Image bytes"] --> DEC["decode_image<br/>EXIF rotation"]
-    DEC --> PRE["(opt) CLAHE"]
-    PRE --> DET["SCRFD det_10g<br/>640² (opt +1280 multi-scale)<br/>boxes + 5 landmarks"]
+    DEC --> DET["SCRFD det_10g<br/>640², threshold 0.4<br/>boxes + 5 landmarks"]
     DET --> NMS["NMS / merge"]
     NMS --> ALN["Umeyama similarity<br/>→ 112×112 aligned crop"]
     ALN --> Q{"Enroll?<br/>quality gate"}
     Q -->|"det≥0.6, face≥80px,<br/>sharp, frontal"| EMB
-    ALN --> EMB["ArcFace w600k_r50<br/>(opt flip-TTA)<br/>→ 512-d, L2 norm"]
+    ALN --> EMB["ArcFace w600k_r50<br/>→ 512-d, L2 norm"]
     EMB --> SRCH["FAISS IndexFlatIP<br/>cosine top-k"]
     SRCH --> AGG["Person-level max"]
     AGG --> THR{"sim ≥ threshold?<br/>(margin for login)"}
@@ -190,9 +189,9 @@ flowchart LR
 
 | Stage | Model / algo | Measured (RTX 3050 laptop) | Kyun |
 |---|---|---|---|
-| Detect | SCRFD 10G, 640² | 23 ms GPU · 141 ms CPU | Accuracy/speed sweet spot; 1280² = ~6× slower |
+| Detect | SCRFD 10G, 640², thr 0.4 | 18-23 ms GPU · 141 ms CPU | Measured: 1280² misses 90% of LFW faces and is 7× slower; thr 0.4 halves missed faces |
 | Align | Umeyama (5 points) | <1 ms | ArcFace ne aligned faces pe hi seekha; bina iske accuracy girti hai |
-| Embed | ArcFace R50 (WebFace600K) | 10.6 ms/face (b=1) → 4.4 ms (b=16) | 512-d, cosine; LFW 99.63% |
+| Embed | ArcFace R50 (WebFace600K) | 10.6 ms/face (b=1) → 4.4 ms (b=16) | 512-d, cosine; LFW 99.73% (thr 0.4) |
 | Search | FAISS flat inner product | <1 ms @ 10k | Exact; ~1 lakh tak flat kaafi |
 | End-to-end | API, 1-face image | p50 ~42 ms (c=1) | `docs/phase-4-serving.md` |
 
@@ -203,6 +202,10 @@ flowchart LR
 | Recognize / kiosk | `FACEAI_MATCH_THRESHOLD` | 0.4 | Admin supervised; galat match manual override se theek |
 | Face login | `FACEAI_FACE_LOGIN_THRESHOLD` + margin 0.05 | 0.5 | Account access = strict; do log paas-paas → password maango |
 | Calibration | `python -m faceai.eval.calibrate` | your data | LFW threshold (0.253) apne cameras pe transfer nahi hota |
+
+**Phase A experiments** (`docs/phase-a-accuracy.md`): CLAHE, flip-TTA, 1280 and multi-scale were
+measured on LFW and rejected (no gain, or catastrophic for 1280); they stay as config switches for
+re-measuring on your own cameras.
 
 **Liveness (active):** random 2 steps (turn left/right/center) → frames → yaw (5 landmarks) +
 same-identity check → single-use token (embedding ke saath). Face login/self-attendance usi token

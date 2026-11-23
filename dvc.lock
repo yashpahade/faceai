@@ -41,21 +41,21 @@ stages:
         eval.clahe: false
         eval.det_extra_sizes: []
         eval.det_size: 640
-        eval.det_threshold: 0.5
+        eval.det_threshold: 0.4
         eval.flip_tta: false
     outs:
     - path: data/eval/lfw_embeddings.npz
       hash: md5
-      md5: 996f0ad64dc76bc99c9741f3d55d2603
-      size: 14718331
+      md5: 43cd1bb277c92aba41af0bd97950ad97
+      size: 14729708
   evaluate_lfw:
     cmd: python -m faceai.eval.evaluate --emb data/eval/lfw_embeddings.npz --out
       reports/eval
     deps:
     - path: data/eval/lfw_embeddings.npz
       hash: md5
-      md5: 996f0ad64dc76bc99c9741f3d55d2603
-      size: 14718331
+      md5: 43cd1bb277c92aba41af0bd97950ad97
+      size: 14729708
     - path: src/faceai/eval/evaluate.py
       hash: md5
       md5: b64cd55a09f42dd6ef9a399619812483
@@ -74,17 +74,17 @@ stages:
     outs:
     - path: reports/eval/errors.json
       hash: md5
-      md5: 3b7db1f2ba4ee8255659a933f0772613
-      size: 2806
+      md5: 1a0fdbc185362dc88a061fe3e3e461df
+      size: 2685
     - path: reports/eval/metrics.json
       hash: md5
-      md5: b073b8d52846f02027576f54cbc4dcf8
+      md5: a13c8990feb82190ba1c0797727c5598
       size: 678
     - path: reports/eval/roc.csv
       hash: md5
-      md5: a3a3d76db8e0a5102afbe7dc8180c468
+      md5: 1f44c259664a573b1aabe394240f8710
       size: 10112
     - path: reports/eval/scores.csv
       hash: md5
-      md5: 20eb00e062a2fec695823089bcf37f7d
+      md5: b123370c5260dfc5c13e955dbfefa7bd
       size: 757

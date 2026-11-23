@@ -3,32 +3,14 @@
   "false_accepts": [],
   "false_rejects": [
     {
-      "img1": "lfw/Chan_Gailey/Chan_Gailey_0001.jpg",
-      "img2": "lfw/Chan_Gailey/Chan_Gailey_0002.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
-      "img1": "lfw/Roseanne_Barr/Roseanne_Barr_0002.jpg",
-      "img2": "lfw/Roseanne_Barr/Roseanne_Barr_0003.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
-      "img1": "lfw/Roseanne_Barr/Roseanne_Barr_0001.jpg",
-      "img2": "lfw/Roseanne_Barr/Roseanne_Barr_0002.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
       "img1": "lfw/Morgan_Freeman/Morgan_Freeman_0001.jpg",
       "img2": "lfw/Morgan_Freeman/Morgan_Freeman_0002.jpg",
       "score": -1.0,
       "face_found": false
     },
     {
-      "img1": "lfw/Stan_Heath/Stan_Heath_0001.jpg",
-      "img2": "lfw/Stan_Heath/Stan_Heath_0002.jpg",
+      "img1": "lfw/John_Bolton/John_Bolton_0011.jpg",
+      "img2": "lfw/John_Bolton/John_Bolton_0016.jpg",
       "score": -1.0,
       "face_found": false
     },
@@ -45,28 +27,10 @@
       "face_found": false
     },
     {
-      "img1": "lfw/Tiger_Woods/Tiger_Woods_0009.jpg",
-      "img2": "lfw/Tiger_Woods/Tiger_Woods_0023.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
-      "img1": "lfw/John_Bolton/John_Bolton_0011.jpg",
-      "img2": "lfw/John_Bolton/John_Bolton_0016.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
-      "img1": "lfw/Lisa_Raymond/Lisa_Raymond_0001.jpg",
-      "img2": "lfw/Lisa_Raymond/Lisa_Raymond_0002.jpg",
-      "score": -1.0,
-      "face_found": false
-    },
-    {
-      "img1": "lfw/Geno_Auriemma/Geno_Auriemma_0001.jpg",
-      "img2": "lfw/Geno_Auriemma/Geno_Auriemma_0002.jpg",
-      "score": -1.0,
-      "face_found": false
+      "img1": "lfw/Tony_Blair/Tony_Blair_0018.jpg",
+      "img2": "lfw/Tony_Blair/Tony_Blair_0086.jpg",
+      "score": -0.0842,
+      "face_found": true
     },
     {
       "img1": "lfw/Cristina_Fernandez/Cristina_Fernandez_0001.jpg",
@@ -91,8 +55,38 @@
       "img2": "lfw/Jim_OBrien/Jim_OBrien_0002.jpg",
       "score": 0.0294,
       "face_found": true
+    },
+    {
+      "img1": "lfw/Nabil_Shaath/Nabil_Shaath_0002.jpg",
+      "img2": "lfw/Nabil_Shaath/Nabil_Shaath_0003.jpg",
+      "score": 0.0698,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Surakait_Sathirathai/Surakait_Sathirathai_0001.jpg",
+      "img2": "lfw/Surakait_Sathirathai/Surakait_Sathirathai_0002.jpg",
+      "score": 0.1024,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Debra_Messing/Debra_Messing_0001.jpg",
+      "img2": "lfw/Debra_Messing/Debra_Messing_0002.jpg",
+      "score": 0.1366,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Janica_Kostelic/Janica_Kostelic_0001.jpg",
+      "img2": "lfw/Janica_Kostelic/Janica_Kostelic_0002.jpg",
+      "score": 0.1658,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Martha_Bowen/Martha_Bowen_0001.jpg",
+      "img2": "lfw/Martha_Bowen/Martha_Bowen_0002.jpg",
+      "score": 0.1789,
+      "face_found": true
     }
   ],
   "n_false_accepts": 0,
-  "n_false_rejects": 20
+  "n_false_rejects": 14
 }

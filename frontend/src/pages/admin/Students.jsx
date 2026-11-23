@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../../api/client";
+import Field from "../../components/Field";
 import { Stagger, StaggerItem, toast } from "../../components/motion";
+import { nameError, phoneError, rollError, sanitizeName, sanitizePhone, sanitizeRoll } from "../../lib/validate";
 import { BatchSelector, EmptyState, ErrorBox, PageHeader, Spinner, StatusBadge, useBatches } from "../../components/ui";
 
 // Student CRM: list, search, batch filter, add.
@@ -87,9 +89,18 @@ export function StudentCard({ s, batch }) {
 function AddStudent({ batches, onClose, onCreated }) {
   const [f, setF] = useState({ full_name: "", email: "", phone: "", roll_no: "", batch_id: "", consent: false });
   const [error, setError] = useState(null);
+  const [tried, setTried] = useState(false);
+  const errs = {
+    full_name: nameError(f.full_name),
+    email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email) ? null : "Enter a valid email",
+    phone: phoneError(f.phone),
+    roll_no: rollError(f.roll_no),
+  };
   async function submit(e) {
     e.preventDefault();
     setError(null);
+    setTried(true);
+    if (Object.values(errs).some(Boolean)) return;
     try {
       const body = { ...f, phone: f.phone || null, roll_no: f.roll_no || null, batch_id: f.batch_id || null };
       onCreated(await api("/v1/admin/students", { method: "POST", json: body }));
@@ -98,18 +109,19 @@ function AddStudent({ batches, onClose, onCreated }) {
     }
   }
   return (
-    <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onSubmit={submit} className="card grid gap-3 overflow-hidden p-4 sm:grid-cols-2">
-      {[
-        ["full_name", "Full name", true],
-        ["email", "Email", true],
-        ["phone", "Phone", false],
-        ["roll_no", "Roll no", false],
-      ].map(([k, label, req]) => (
-        <div key={k}>
-          <label className="label" htmlFor={`new-${k}`}>{label}</label>
-          <input id={`new-${k}`} className="input" required={req} type={k === "email" ? "email" : "text"} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} />
-        </div>
-      ))}
+    <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onSubmit={submit} noValidate className="card grid gap-3 overflow-hidden p-4 sm:grid-cols-2">
+      <Field id="new-full_name" label="Full name" error={errs.full_name} touched={tried}>
+        <input id="new-full_name" className="input" value={f.full_name} onChange={(e) => setF({ ...f, full_name: sanitizeName(e.target.value) })} />
+      </Field>
+      <Field id="new-email" label="Email" error={errs.email} touched={tried}>
+        <input id="new-email" className="input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value.trim() })} />
+      </Field>
+      <Field id="new-phone" label="Mobile" error={errs.phone} touched={tried} hint="10 digits (optional)">
+        <input id="new-phone" className="input" type="tel" inputMode="numeric" maxLength={13} value={f.phone} onChange={(e) => setF({ ...f, phone: sanitizePhone(e.target.value) })} />
+      </Field>
+      <Field id="new-roll_no" label="Roll no" error={errs.roll_no} touched={tried} hint="e.g. R-01 (optional)">
+        <input id="new-roll_no" className="input" value={f.roll_no} onChange={(e) => setF({ ...f, roll_no: sanitizeRoll(e.target.value) })} />
+      </Field>
       <div>
         <label className="label" htmlFor="new-batch">Batch</label>
         <select id="new-batch" className="input" value={f.batch_id} onChange={(e) => setF({ ...f, batch_id: e.target.value })}>

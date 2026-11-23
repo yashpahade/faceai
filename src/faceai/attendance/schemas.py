@@ -7,11 +7,38 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from faceai.attendance.validators import check_password, clean_name, clean_phone, clean_roll
+
 HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
 EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 
-class SignupIn(BaseModel):
+class _InputRules(BaseModel):
+    """Name / mobile / password / roll no rules (attendance/validators.py). Jis model mein jo
+    field ho, us par lagte hain; None = field nahi bheja (optional update)."""
+
+    @field_validator("full_name", check_fields=False)
+    @classmethod
+    def _name(cls, v):
+        return None if v is None else clean_name(v)
+
+    @field_validator("phone", check_fields=False)
+    @classmethod
+    def _phone(cls, v):
+        return clean_phone(v)
+
+    @field_validator("password", check_fields=False)
+    @classmethod
+    def _password(cls, v):
+        return None if v is None else check_password(v)
+
+    @field_validator("roll_no", check_fields=False)
+    @classmethod
+    def _roll(cls, v):
+        return clean_roll(v)
+
+
+class SignupIn(_InputRules):
     email: str = Field(pattern=EMAIL, max_length=255)
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=100)
@@ -63,12 +90,12 @@ class TokenOut(BaseModel):
     similarity: float | None = None
 
 
-class ProfileUpdate(BaseModel):
+class ProfileUpdate(_InputRules):
     full_name: str | None = Field(default=None, min_length=1, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
 
 
-class StudentCreate(BaseModel):
+class StudentCreate(_InputRules):
     email: str = Field(pattern=EMAIL, max_length=255)
     full_name: str = Field(min_length=1, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
@@ -83,7 +110,7 @@ class StudentCreated(BaseModel):
     temporary_password: str = Field(description="sirf ek baar dikhaya jaata hai; student ko do")
 
 
-class StudentUpdate(BaseModel):
+class StudentUpdate(_InputRules):
     full_name: str | None = Field(default=None, min_length=1, max_length=100)
     phone: str | None = Field(default=None, max_length=20)
     roll_no: str | None = Field(default=None, max_length=30)

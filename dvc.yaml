@@ -1,0 +1,61 @@
+# Evaluation pipeline. Run:  python -m dvc repro
+# Graph:                    python -m dvc dag
+stages:
+  download_lfw:
+    cmd: python -m faceai.eval.lfw --out data/lfw
+    deps:
+      - src/faceai/eval/lfw.py
+    outs:
+      - data/lfw
+
+  embed_lfw:
+    cmd: python -m faceai.eval.embed --lfw data/lfw --out data/eval/lfw_embeddings.npz
+    deps:
+      - data/lfw
+      - models/buffalo_l
+      - src/faceai/vision
+      - src/faceai/eval/embed.py
+    params:
+      - eval.det_size
+      - eval.det_threshold
+    outs:
+      - data/eval/lfw_embeddings.npz
+
+  evaluate_lfw:
+    cmd: python -m faceai.eval.evaluate --emb data/eval/lfw_embeddings.npz --out reports/eval
+    deps:
+      - data/eval/lfw_embeddings.npz
+      - src/faceai/eval/evaluate.py
+      - src/faceai/eval/metrics.py
+    params:
+      - eval.target_fars
+      - eval.operating_far
+    metrics:
+      - reports/eval/metrics.json:
+          cache: false
+    outs:
+      - reports/eval/errors.json:
+          cache: false
+      - reports/eval/roc.csv:
+          cache: false
+      - reports/eval/scores.csv:
+          cache: false
+
+# Plot definitions:  python -m dvc plots show   -> dvc_plots/index.html
+plots:
+  - roc:
+      template: linear
+      x: far
+      y:
+        reports/eval/roc.csv: tar
+      title: ROC curve (LFW) - higher/left is better
+      x_label: False Accept Rate
+      y_label: True Accept Rate
+  - score_distributions:
+      template: linear
+      x: similarity
+      y:
+        reports/eval/scores.csv: [genuine, impostor]
+      title: Genuine vs impostor similarity (LFW)
+      x_label: cosine similarity
+      y_label: pairs

@@ -1,0 +1,14 @@
+# Experiment parameters. DVC tracks this file: change a value -> `dvc repro` reruns only the
+# stages that depend on it. `dvc params diff` shows what changed between commits.
+
+eval:
+  det_size: 640          # detector input size
+  det_threshold: 0.5
+  target_fars: [0.0001, 0.001, 0.01]
+  operating_far: 0.001   # production operating point -> recommended threshold
+
+gate:                    # minimum quality to allow a model into production
+  min_kfold_accuracy: 0.99
+  min_tar_at_far:
+    1e-3: 0.97
+  max_failure_to_detect_rate: 0.01

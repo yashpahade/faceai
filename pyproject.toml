@@ -22,6 +22,9 @@ dependencies = [
 # ONNX Runtime: ek hi chuno. GPU wala CUDA 12 + cuDNN 9 ke DLLs pip se hi le aata hai.
 cpu = ["onnxruntime==1.22.0"]
 gpu = ["onnxruntime-gpu[cuda,cudnn]==1.22.0"]
+# Offline evaluation pipeline (Phase 2)
+# pathspec pinned: dvc 3.59 imports a private name removed in pathspec 1.x
+eval = ["dvc==3.59.1", "pathspec==0.12.1", "pyyaml>=6"]
 dev = [
     "pytest==8.3.4",
     "pytest-cov==6.0.0",

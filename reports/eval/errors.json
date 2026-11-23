@@ -1,0 +1,98 @@
+{
+  "threshold": 0.252991259098053,
+  "false_accepts": [],
+  "false_rejects": [
+    {
+      "img1": "lfw/Chan_Gailey/Chan_Gailey_0001.jpg",
+      "img2": "lfw/Chan_Gailey/Chan_Gailey_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Roseanne_Barr/Roseanne_Barr_0002.jpg",
+      "img2": "lfw/Roseanne_Barr/Roseanne_Barr_0003.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Roseanne_Barr/Roseanne_Barr_0001.jpg",
+      "img2": "lfw/Roseanne_Barr/Roseanne_Barr_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Morgan_Freeman/Morgan_Freeman_0001.jpg",
+      "img2": "lfw/Morgan_Freeman/Morgan_Freeman_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Stan_Heath/Stan_Heath_0001.jpg",
+      "img2": "lfw/Stan_Heath/Stan_Heath_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Padraig_Harrington/Padraig_Harrington_0002.jpg",
+      "img2": "lfw/Padraig_Harrington/Padraig_Harrington_0004.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Padraig_Harrington/Padraig_Harrington_0001.jpg",
+      "img2": "lfw/Padraig_Harrington/Padraig_Harrington_0004.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Tiger_Woods/Tiger_Woods_0009.jpg",
+      "img2": "lfw/Tiger_Woods/Tiger_Woods_0023.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/John_Bolton/John_Bolton_0011.jpg",
+      "img2": "lfw/John_Bolton/John_Bolton_0016.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Lisa_Raymond/Lisa_Raymond_0001.jpg",
+      "img2": "lfw/Lisa_Raymond/Lisa_Raymond_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Geno_Auriemma/Geno_Auriemma_0001.jpg",
+      "img2": "lfw/Geno_Auriemma/Geno_Auriemma_0002.jpg",
+      "score": -1.0,
+      "face_found": false
+    },
+    {
+      "img1": "lfw/Cristina_Fernandez/Cristina_Fernandez_0001.jpg",
+      "img2": "lfw/Cristina_Fernandez/Cristina_Fernandez_0002.jpg",
+      "score": 0.0046,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Jim_OBrien/Jim_OBrien_0001.jpg",
+      "img2": "lfw/Jim_OBrien/Jim_OBrien_0003.jpg",
+      "score": 0.0145,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Elisabeth_Schumacher/Elisabeth_Schumacher_0001.jpg",
+      "img2": "lfw/Elisabeth_Schumacher/Elisabeth_Schumacher_0002.jpg",
+      "score": 0.0152,
+      "face_found": true
+    },
+    {
+      "img1": "lfw/Jim_OBrien/Jim_OBrien_0001.jpg",
+      "img2": "lfw/Jim_OBrien/Jim_OBrien_0002.jpg",
+      "score": 0.0294,
+      "face_found": true
+    }
+  ],
+  "n_false_accepts": 0,
+  "n_false_rejects": 20
+}

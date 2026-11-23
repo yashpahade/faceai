@@ -2,33 +2,33 @@
   "model_id": "buffalo_l/w600k_r50",
   "dataset": "lfw-6000-pairs",
   "n_pairs": 6000,
-  "failure_to_detect_rate": 0.00143,
-  "pairs_with_failure": 17,
-  "kfold_accuracy": 0.99633,
-  "kfold_accuracy_std": 0.00277,
-  "auc": 0.995724,
-  "eer": 0.006,
-  "eer_threshold": 0.1522,
+  "failure_to_detect_rate": 0.00065,
+  "pairs_with_failure": 9,
+  "kfold_accuracy": 0.99733,
+  "kfold_accuracy_std": 0.0017,
+  "auc": 0.997741,
+  "eer": 0.00433,
+  "eer_threshold": 0.1719,
   "kfold_threshold_mean": 0.2489,
   "tar_at_far": {
     "1e-4": {
-      "tar": 0.99333,
+      "tar": 0.99533,
       "threshold": 0.253
     },
     "1e-3": {
-      "tar": 0.99333,
+      "tar": 0.99533,
       "threshold": 0.253
     },
     "1e-2": {
-      "tar": 0.994,
+      "tar": 0.996,
       "threshold": 0.1658
     }
   },
-  "ms_per_image": 78.85,
+  "ms_per_image": 58.02,
   "device": "cuda",
   "recommended_threshold": {
     "far": 0.001,
     "threshold": 0.253,
-    "tar": 0.99333
+    "tar": 0.99533
   }
 }

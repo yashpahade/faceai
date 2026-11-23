@@ -3,7 +3,7 @@
 
 eval:
   det_size: 640          # detector input size
-  det_threshold: 0.5
+  det_threshold: 0.4    # Phase A: LFW experiment -> fewer missed faces, higher TAR (docs/phase-a-accuracy.md)
   det_extra_sizes: []   # Phase A: multi-scale, e.g. [1280]
   clahe: false          # Phase A: contrast enhancement before detection
   flip_tta: false       # Phase A: embed face + mirror, average

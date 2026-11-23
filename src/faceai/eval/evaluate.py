@@ -76,12 +76,13 @@ def main() -> None:
     }
 
     args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    # LF + trailing newline: DVC hashes these bytes, and git checks them out as LF (.gitattributes)
+    (args.out / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n", newline="\n")
 
     # ROC: ~400 points kaafi hain plot ke liye
     idx = np.unique(np.linspace(0, len(roc.far) - 1, 400).astype(int))
     with (args.out / "roc.csv").open("w", newline="") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["far", "tar", "threshold"])
         for i in idx:
             w.writerow(
@@ -93,7 +94,7 @@ def main() -> None:
     g, _ = np.histogram(scores[(labels == 1) & pair_ok], bins)
     im, _ = np.histogram(scores[(labels == 0) & pair_ok], bins)
     with (args.out / "scores.csv").open("w", newline="") as f:
-        w = csv.writer(f)
+        w = csv.writer(f, lineterminator="\n")
         w.writerow(["similarity", "genuine", "impostor"])
         for b, a, c in zip(bins[:-1], g, im, strict=True):
             w.writerow([f"{b + (bins[1] - bins[0]) / 2:.3f}", int(a), int(c)])
@@ -122,7 +123,7 @@ def main() -> None:
         "n_false_accepts": int(len(fa)),
         "n_false_rejects": int(len(fr)),
     }
-    (args.out / "errors.json").write_text(json.dumps(errors, indent=2))
+    (args.out / "errors.json").write_text(json.dumps(errors, indent=2) + "\n", newline="\n")
     print(json.dumps(metrics, indent=2))
 
 

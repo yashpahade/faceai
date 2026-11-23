@@ -29,17 +29,20 @@ stages:
       nfiles: 2
     - path: src/faceai/eval/embed.py
       hash: md5
-      md5: a03c2c7e074663dab8a609fb8b6670cf
-      size: 3183
+      md5: d8aa03316ee9bf867b33b7c79795e516
+      size: 3363
     - path: src/faceai/vision
       hash: md5
-      md5: 34c43587e7e8068974b9ee1b4760df38.dir
-      size: 18490
-      nfiles: 8
+      md5: 511a602aac3e0a139e0726af95a01349.dir
+      size: 21693
+      nfiles: 9
     params:
       params.yaml:
+        eval.clahe: false
+        eval.det_extra_sizes: []
         eval.det_size: 640
         eval.det_threshold: 0.5
+        eval.flip_tta: false
     outs:
     - path: data/eval/lfw_embeddings.npz
       hash: md5

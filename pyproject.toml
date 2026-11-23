@@ -30,6 +30,8 @@ gpu = ["onnxruntime-gpu[cuda,cudnn]==1.22.0"]
 # Offline evaluation pipeline (Phase 2)
 # pathspec pinned: dvc 3.59 imports a private name removed in pathspec 1.x
 eval = ["dvc==3.59.1", "pathspec==0.12.1", "pyyaml>=6"]
+# Production DB driver (Phase E): FACEAI_PRODUCT_DB_URL=postgresql+psycopg://...
+postgres = ["psycopg[binary]==3.2.3"]
 # Experiment tracking + model registry (Phase 3)
 mlops = ["mlflow==3.17.2", "pyyaml>=6"]
 dev = [
@@ -42,6 +44,10 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Alembic migration scripts (not a Python package) must ship in the wheel/Docker image
+[tool.setuptools.package-data]
+"faceai.attendance" = ["migrations/*.py", "migrations/*.mako", "migrations/versions/*.py"]
 
 # ---------------- Ruff: linter + formatter ----------------
 [tool.ruff]

@@ -12,6 +12,9 @@ COPY pyproject.toml requirements.lock ./
 # Container mein CPU runtime. (GPU container ke liye nvidia/cuda base image + onnxruntime-gpu chahiye)
 ARG ORT_PACKAGE=onnxruntime==1.22.0
 RUN pip install -r requirements.lock "$ORT_PACKAGE"
+# Phase E: prod compose Postgres driver pass karta hai (EXTRA_PIP="psycopg[binary]==3.2.3")
+ARG EXTRA_PIP=""
+RUN if [ -n "$EXTRA_PIP" ]; then pip install "$EXTRA_PIP"; fi
 
 COPY src ./src
 RUN pip install --no-deps .

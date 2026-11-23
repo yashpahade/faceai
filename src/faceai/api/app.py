@@ -12,6 +12,7 @@ Concepts:
 
 import logging
 import secrets
+import socket
 import time
 import uuid
 from collections.abc import AsyncIterator
@@ -37,6 +38,7 @@ from faceai.security.liveness import LivenessChecker
 from faceai.service import RecognitionService
 from faceai.serving.batcher import MicroBatcher
 from faceai.serving.limiter import ConcurrencyLimiter
+from faceai.serving.ratelimit import DEFAULT_RULES, RateLimiter, client_ip
 from faceai.store.db import Database
 from faceai.vision.types import FaceEngineProtocol
 
@@ -92,6 +94,17 @@ def _build_attendance(settings: Settings, bio: RecognitionService) -> Attendance
         secret = secrets.token_urlsafe(32)
         logger.warning("FACEAI_JWT_SECRET not set; using an ephemeral dev secret")
     return AttendanceService(make_sessionmaker(engine), bio, settings, secret)
+
+
+def _resolve_proxies(spec: str) -> set[str]:
+    """'web,10.0.0.2' -> IPs. Docker service names (e.g. Caddy 'web') ka IP startup pe resolve."""
+    out: set[str] = set()
+    for item in filter(None, (x.strip() for x in spec.split(","))):
+        try:
+            out.add(socket.gethostbyname(item))
+        except OSError:
+            logger.warning("trusted proxy %s could not be resolved", item)
+    return out
 
 
 def check_security_config(settings: Settings, liveness: LivenessChecker | None) -> list[str]:
@@ -180,6 +193,8 @@ def create_app(
         logger.info("shutting down")
 
     app = FastAPI(title="FaceAI", version=__version__, lifespan=lifespan)
+    rate_limiter = RateLimiter(DEFAULT_RULES) if settings.rate_limit else None
+    trusted = _resolve_proxies(settings.trusted_proxies)
     app.include_router(router)
     app.include_router(public_router)
     app.include_router(attendance_router)
@@ -189,8 +204,22 @@ def create_app(
         rid = request.headers.get("X-Request-ID") or uuid.uuid4().hex[:12]
         token = request_id_ctx.set(rid)
         start = time.perf_counter()
+        retry_after = None
+        if rate_limiter is not None:
+            ip = client_ip(
+                request.headers, request.client.host if request.client else None, trusted
+            )
+            retry_after = rate_limiter.check(request.url.path, ip)
         try:
-            response = await call_next(request)
+            if retry_after is not None:
+                # Phase E: brute force / abuse -> 429 (handler tak pahunchta hi nahi)
+                response = JSONResponse(
+                    {"detail": "too many requests"},
+                    status_code=429,
+                    headers={"Retry-After": str(int(retry_after + 0.999))},
+                )
+            else:
+                response = await call_next(request)
         except Exception:
             logger.exception("unhandled error on %s %s", request.method, request.url.path)
             response = JSONResponse({"detail": "internal server error"}, status_code=500)

@@ -131,6 +131,13 @@ class Settings(BaseSettings):
         default=0.05, ge=0.0, le=1.0, description="top-1 aur top-2 mein min farak (ambiguous => no)"
     )
 
+    # --- Production hardening (Phase E) ---
+    rate_limit: bool = Field(default=True, description="per-IP limits on login/signup/liveness")
+    trusted_proxies: str = Field(
+        default="",
+        description="comma-separated proxy IPs/hostnames whose X-Forwarded-For is trusted",
+    )
+
     @property
     def auth_required(self) -> bool:
         return self.auth == "required" or (self.auth == "auto" and self.env == "prod")

@@ -1,6 +1,7 @@
 # FaceAI
 
-Production-style face recognition service, built phase by phase to learn MLOps.
+Production-style face recognition service, built phase by phase to learn MLOps, now grown into
+**FaceAI Pro**: a mobile-first biometric attendance app (React PWA + FastAPI).
 
 | Phase | Topic | Status |
 |---|---|---|
@@ -12,6 +13,18 @@ Production-style face recognition service, built phase by phase to learn MLOps.
 | 5 | CI/CD with eval gate: GitHub Actions | ✅ done |
 | 6 | Monitoring + drift: Prometheus, Grafana | ✅ done |
 | 7 | Trust & safety: liveness, encryption, data deletion | ✅ done |
+
+**FaceAI Pro (product phases)**
+
+| Phase | Topic | Status |
+|---|---|---|
+| A | Accuracy: measured experiments, EXIF, calibration, active liveness | ✅ done |
+| B | Backend: JWT auth, roles, students, batches, attendance rules, reports | ✅ done |
+| C | React frontend: 11 pages, design system, motion | ✅ done |
+| D | Mobile: PWA, phone HTTPS dev, camera + bandwidth | ✅ done |
+| E | Production: HTTPS, Postgres, migrations, rate limits, backups | ✅ done |
+
+Architecture (system, database, face pipeline): [`docs/architecture.md`](docs/architecture.md).
 
 Learning notes per phase: [`docs/`](docs/). Old code for reference: [`legacy/`](legacy/).
 
@@ -41,6 +54,17 @@ reports/eval/      # metrics.json, ROC, score histograms, error analysis
 pyproject.toml      # deps + tool config
 requirements.lock   # exact pinned runtime versions (used by Docker)
 ```
+
+## FaceAI Pro quickstart
+
+```powershell
+.venv\Scripts\python -m faceai.attendance.create_admin --email you@school.in   # first admin (once)
+.venv\Scripts\python -m faceai                                                 # API :8000
+cd frontend; npm install; npm run dev          # http://localhost:5173
+npm run dev:phone                              # HTTPS on LAN -> open https://<PC-IP>:5173 on your phone
+```
+
+Production: [`docs/phase-e-production.md`](docs/phase-e-production.md) (`docker-compose.prod.yml`).
 
 ## Local development (Windows, PowerShell)
 

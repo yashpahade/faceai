@@ -60,7 +60,9 @@ def resolve_providers(device: str) -> list[str]:
     return ["CPUExecutionProvider"]
 
 
-def create_session(model_path: Path, device: str = "auto") -> ort.InferenceSession:
+def create_session(
+    model_path: Path, device: str = "auto", intra_op_threads: int = 0
+) -> ort.InferenceSession:
     if not model_path.exists():
         raise FileNotFoundError(
             f"Model not found: {model_path}. Run: python -m faceai.models.download"
@@ -68,6 +70,9 @@ def create_session(model_path: Path, device: str = "auto") -> ort.InferenceSessi
     opts = ort.SessionOptions()
     opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
     opts.log_severity_level = 3  # sirf errors
+    if intra_op_threads:
+        # CPU: kai requests ek saath => har session saare cores na maange (oversubscription)
+        opts.intra_op_num_threads = intra_op_threads
     session = ort.InferenceSession(
         str(model_path), sess_options=opts, providers=resolve_providers(device)
     )

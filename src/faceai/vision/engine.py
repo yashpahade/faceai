@@ -7,6 +7,7 @@ Koi fallback nahi.
 """
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import numpy as np
@@ -24,12 +25,21 @@ logger = logging.getLogger(__name__)
 
 
 class FaceEngine:
-    def __init__(self, models_dir: Path, pack: str, det_size: int = 640, device: str = "auto"):
+    def __init__(
+        self,
+        models_dir: Path,
+        pack: str,
+        det_size: int = 640,
+        device: str = "auto",
+        intra_op_threads: int = 0,
+    ):
         pack_dir = models_dir / pack
-        det_sess = create_session(pack_dir / DETECTOR_FILE, device)
-        rec_sess = create_session(pack_dir / RECOGNIZER_FILE, device)
+        det_sess = create_session(pack_dir / DETECTOR_FILE, device, intra_op_threads)
+        rec_sess = create_session(pack_dir / RECOGNIZER_FILE, device, intra_op_threads)
         self.detector = SCRFDDetector(det_sess, input_size=det_size)
         self.embedder = ArcFaceEmbedder(rec_sess)
+        # Serving mein ise MicroBatcher se replace kiya jaata hai (Phase 4); default = direct call
+        self.embed_fn: Callable[[list[np.ndarray]], np.ndarray] = self.embedder.embed
         self.dim = self.embedder.dim
         # model_id har stored embedding ke saath save hota hai (embedding versioning)
         self.model_id = f"{pack}/{Path(RECOGNIZER_FILE).stem}"
@@ -49,7 +59,7 @@ class FaceEngine:
             return []
         for f in faces:
             f.aligned = align_face(image_bgr, f.kps)
-        embeddings = self.embedder.embed([f.aligned for f in faces])  # saare faces ek batch mein
+        embeddings = self.embed_fn([f.aligned for f in faces])  # saare faces ek batch mein
         for f, e in zip(faces, embeddings, strict=True):
             f.embedding = e
         return faces

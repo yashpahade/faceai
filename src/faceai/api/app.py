@@ -25,6 +25,8 @@ from faceai.config import Settings, get_settings
 from faceai.logging import request_id_ctx, setup_logging
 from faceai.models.card import load_card
 from faceai.service import RecognitionService
+from faceai.serving.batcher import MicroBatcher
+from faceai.serving.limiter import ConcurrencyLimiter
 from faceai.store.db import Database
 from faceai.vision.types import FaceEngineProtocol
 
@@ -35,10 +37,36 @@ def _build_engine(settings: Settings) -> FaceEngineProtocol:
     from faceai.vision.engine import FaceEngine  # heavy import (onnxruntime) sirf yahan
 
     engine = FaceEngine(
-        settings.models_dir, settings.model_pack, settings.det_size, settings.device
+        settings.models_dir,
+        settings.model_pack,
+        settings.det_size,
+        settings.device,
+        settings.ort_intra_op_threads,
     )
     engine.warmup()
     return engine
+
+
+def _setup_batching(engine: FaceEngineProtocol, settings: Settings) -> MicroBatcher | None:
+    """Embedder ko MicroBatcher se wrap karo (sirf jahan fayda hai: GPU, reports/perf dekho)."""
+    if not hasattr(engine, "embed_fn"):  # fake engine
+        return None
+    on = settings.batching == "on" or (settings.batching == "auto" and engine.device == "cuda")
+    if not on:
+        return None
+    batcher = MicroBatcher(
+        engine.embedder.embed,
+        settings.batch_max_size,
+        settings.batch_max_wait_ms,
+        name="embed-batcher",
+    )
+    engine.embed_fn = batcher
+    logger.info(
+        "embedding micro-batching on (max_batch=%d, max_wait=%.1fms)",
+        settings.batch_max_size,
+        settings.batch_max_wait_ms,
+    )
+    return batcher
 
 
 def create_app(
@@ -58,10 +86,16 @@ def create_app(
         app.state.service = None
         app.state.model_card = None
         app.state.ready = False
+        app.state.batcher = None
+        # Admission control (Phase 4): capacity se zyada => turant 503, sabko slow nahi
+        app.state.limiter = ConcurrencyLimiter(
+            settings.max_concurrent_inference, settings.max_queue_wait_ms
+        )
         db = Database(settings.db_path)
         try:
             t0 = time.perf_counter()
             eng = engine or _build_engine(settings)
+            app.state.batcher = _setup_batching(eng, settings)
             # Registry version info (Phase 3). Fake engine (tests) ke saath card nahi padhte.
             app.state.model_card = (
                 None if engine else load_card(settings.models_dir / settings.model_pack)
@@ -75,6 +109,8 @@ def create_app(
             # App zinda rahe (liveness OK) par ready nahi -> load balancer traffic nahi bhejega
             logger.exception("model load failed; service NOT ready")
         yield
+        if app.state.batcher:
+            app.state.batcher.close()
         db.close()
         logger.info("shutting down")
 

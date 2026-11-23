@@ -331,3 +331,30 @@ def test_signup_api_enforces_rules(app_client):
         assert r.status_code == 422, bad
     ok = app_client.post("/v1/auth/signup", json={**base, "phone": "98765 43210"})
     assert ok.status_code == 201 and ok.json()["user"]["phone"] == "+919876543210"
+
+
+def test_enrollment_date_uses_local_timezone_not_utc(app_client, monkeypatch):
+    """Regression: 00:30 IST = pichhle din 19:00 UTC. Naya student kal ka absent na bane."""
+    from datetime import datetime as dt
+
+    svc = app_client.app.state.attendance
+    just_after_midnight_ist = dt(2026, 11, 24, 0, 30, tzinfo=IST)  # UTC: 2026-11-23 19:00
+    monkeypatch.setattr(svc, "now_local", lambda: just_after_midnight_ist)
+    h = _admin(app_client)
+    batch = _always_open_batch(app_client, h)
+    r = app_client.post(
+        "/v1/admin/students",
+        json={"email": "tz@x.in", "full_name": "Tara", "batch_id": batch, "consent": True},
+        headers=h,
+    ).json()
+    assert r["student"]["enrollment_date"] == "2026-11-24"
+    t = app_client.post(
+        "/v1/auth/signup",
+        json={"email": "tz2@x.in", "password": "password123", "full_name": "Tanu", "consent": True},
+    ).json()
+    assert t["user"]["enrollment_date"] == "2026-11-24"
+    rows = app_client.get(
+        f"/v1/admin/attendance?user_id={r['student']['id']}&from=2026-11-23&to=2026-11-24",
+        headers=h,
+    ).json()
+    assert rows == []  # 23 Nov ko student tha hi nahi -> koi absent nahi

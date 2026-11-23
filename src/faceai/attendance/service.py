@@ -96,6 +96,9 @@ class AttendanceService:
                 full_name=full_name.strip(),
                 phone=phone,
                 role="student",
+                # LOCAL date (FACEAI_TIMEZONE). UTC date 00:00-05:30 IST ke beech "kal" hota hai
+                # -> naye student ka kal ka false "absent" ban jaata.
+                enrollment_date=self.now_local().date(),
             )
             db.add(u)
             db.flush()
@@ -156,7 +159,12 @@ class AttendanceService:
         with self.sessions.begin() as db:
             if data.get("batch_id") and db.get(Batch, data["batch_id"]) is None:
                 raise NotFound("batch")
-            u = User(**data, password_hash=hash_password(temp_password), role="student")
+            u = User(
+                **data,
+                password_hash=hash_password(temp_password),
+                role="student",
+                enrollment_date=self.now_local().date(),  # local date, not UTC (see signup)
+            )
             db.add(u)
             try:
                 db.flush()

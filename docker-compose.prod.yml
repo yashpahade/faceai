@@ -25,6 +25,7 @@ services:
     # port publish NAHI: DB sirf internal network pe
 
   api:
+    image: faceai-api:prod # biobackup bhi yahi image use karta hai
     build:
       context: .
       args:
@@ -42,7 +43,6 @@ services:
     volumes:
       - biodata:/app/data # encrypted biometric store (single replica: SQLite)
       - ./models:/app/models:ro
-      - backups:/backups # biometric backup: host cron -> exec api python -m faceai.ops.backup --out /backups
     depends_on:
       db:
         condition: service_healthy
@@ -82,6 +82,26 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  # Roz raat 2:30: encrypted biometric SQLite ka ONLINE backup (consistent copy, API chalte hue)
+  # + PRAGMA integrity_check + 7 din retention. Rows already AES-GCM encrypted hain; key yahan NAHI.
+  biobackup:
+    image: faceai-api:prod
+    environment:
+      FACEAI_ENV: prod
+      FACEAI_DATA_DIR: /app/data
+    volumes:
+      - biodata:/app/data
+      - backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          python -m faceai.ops.backup --out /backups --keep 7 || echo "BIOMETRIC BACKUP FAILED"
+          sleep 86400
+        done
+    depends_on: [api]
     restart: unless-stopped
 
 volumes:

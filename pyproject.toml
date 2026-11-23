@@ -63,3 +63,19 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+
+# ---------------- Coverage ----------------
+[tool.coverage.run]
+source = ["faceai"]
+# Ye modules asli data/GPU/network ke bina nahi chal sakte (LFW download, GPU embedding, model
+# download, server entrypoint). Inhe eval-full workflow + smoke script cover karte hain, unit tests nahi.
+omit = [
+    "*/faceai/eval/lfw.py",
+    "*/faceai/eval/embed.py",
+    "*/faceai/models/download.py",
+    "*/faceai/__main__.py",
+]
+
+[tool.coverage.report]
+show_missing = false
+skip_covered = true

@@ -104,6 +104,16 @@ class SCRFDDetector:
         )
 
 
+def merge_detections(faces: list[DetectedFace], iou_threshold: float = 0.4) -> list[DetectedFace]:
+    """Alag scales ke detections jodo: same face do baar mila ho to NMS se best rakho."""
+    if len(faces) < 2:
+        return faces
+    boxes = np.stack([f.bbox for f in faces]).astype(np.float32)
+    scores = np.array([f.det_score for f in faces], np.float32)
+    keep = _nms(boxes, scores, iou_threshold)
+    return [faces[i] for i in sorted(keep, key=lambda i: -scores[i])]
+
+
 def _nms(boxes: np.ndarray, scores: np.ndarray, iou_threshold: float) -> list[int]:
     """Non-Maximum Suppression: ek face pe kai overlapping boxes -> sirf best wala rakho."""
     x1, y1, x2, y2 = boxes.T

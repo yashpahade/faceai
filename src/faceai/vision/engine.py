@@ -13,8 +13,9 @@ from pathlib import Path
 import numpy as np
 
 from faceai.vision.align import align_face
-from faceai.vision.detector import SCRFDDetector
+from faceai.vision.detector import SCRFDDetector, merge_detections
 from faceai.vision.embedder import ArcFaceEmbedder
+from faceai.vision.preprocess import apply_clahe
 from faceai.vision.runtime import create_session
 from faceai.vision.types import DetectedFace
 
@@ -32,11 +33,18 @@ class FaceEngine:
         det_size: int = 640,
         device: str = "auto",
         intra_op_threads: int = 0,
+        extra_det_sizes: tuple[int, ...] = (),
+        clahe: bool = False,
+        flip_tta: bool = False,
     ):
         pack_dir = models_dir / pack
         det_sess = create_session(pack_dir / DETECTOR_FILE, device, intra_op_threads)
         rec_sess = create_session(pack_dir / RECOGNIZER_FILE, device, intra_op_threads)
         self.detector = SCRFDDetector(det_sess, input_size=det_size)
+        # Phase A options (default off; scripts/accuracy_experiments.py ke results se decide)
+        self.extra_detectors = [SCRFDDetector(det_sess, input_size=s) for s in extra_det_sizes]
+        self.clahe = clahe
+        self.flip_tta = flip_tta
         self.embedder = ArcFaceEmbedder(rec_sess)
         # Serving mein ise MicroBatcher se replace kiya jaata hai (Phase 4); default = direct call
         self.embed_fn: Callable[[list[np.ndarray]], np.ndarray] = self.embedder.embed
@@ -53,13 +61,33 @@ class FaceEngine:
         on_gpu = all(s.get_providers()[0] == "CUDAExecutionProvider" for s in sessions)
         return "cuda" if on_gpu else "cpu"
 
-    def analyze(self, image_bgr: np.ndarray, det_threshold: float = 0.5) -> list[DetectedFace]:
+    def detect(self, image_bgr: np.ndarray, det_threshold: float) -> list[DetectedFace]:
         faces = self.detector.detect(image_bgr, threshold=det_threshold)
+        if self.extra_detectors:
+            # Multi-scale: chhote faces bade input pe, bade faces chhote pe -> merge + NMS
+            for d in self.extra_detectors:
+                faces += d.detect(image_bgr, threshold=det_threshold)
+            faces = merge_detections(faces, self.detector.nms_threshold)
+        return faces
+
+    def embed_aligned(self, crops: list[np.ndarray]) -> np.ndarray:
+        if not self.flip_tta:
+            return self.embed_fn(crops)
+        # Flip-TTA: face + mirror image dono embed, average. Mirror-invariant embedding.
+        e = self.embed_fn(crops + [c[:, ::-1].copy() for c in crops])
+        n = len(crops)
+        avg = e[:n] + e[n:]
+        return avg / np.linalg.norm(avg, axis=1, keepdims=True).clip(min=1e-12)
+
+    def analyze(self, image_bgr: np.ndarray, det_threshold: float = 0.5) -> list[DetectedFace]:
+        if self.clahe:
+            image_bgr = apply_clahe(image_bgr)
+        faces = self.detect(image_bgr, det_threshold)
         if not faces:
             return []
         for f in faces:
             f.aligned = align_face(image_bgr, f.kps)
-        embeddings = self.embed_fn([f.aligned for f in faces])  # saare faces ek batch mein
+        embeddings = self.embed_aligned([f.aligned for f in faces])  # saare faces ek batch mein
         for f, e in zip(faces, embeddings, strict=True):
             f.embedding = e
         return faces

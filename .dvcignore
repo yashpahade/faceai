@@ -4,3 +4,8 @@
 
 # Registry metadata (Phase 3): weights nahi hai, embed stage ko invalidate nahi karna chahiye
 models/*/model_card.json
+
+# Python bytecode: har checkout/import pe badalta hai, code ka hissa nahi. Iske bina
+# src/ directory deps ka hash machine-to-machine alag aata hai (CI pe eval hamesha "stale").
+__pycache__/
+*.pyc

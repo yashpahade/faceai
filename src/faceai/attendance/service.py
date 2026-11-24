@@ -22,7 +22,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from faceai.attendance.models import Attendance, Batch, Holiday, Leave, User
-from faceai.attendance.rules import decide
+from faceai.attendance.rules import class_over, decide
 from faceai.attendance.security import create_token, hash_password, verify_password
 from faceai.config import Settings
 from faceai.service import RecognitionService
@@ -395,7 +395,8 @@ class AttendanceService:
     ) -> list[dict]:
         """Records + computed rows for class days without a record:
         holiday (us batch/sab ke liye) -> "holiday", approved leave -> "leave", warna -> "absent".
-        Holiday/leave din attendance % ke denominator mein nahi gine jaate."""
+        Holiday/leave din attendance % ke denominator mein nahi gine jaate.
+        Aaj ka din absent tabhi jab us batch ki class khatam ho chuki ho (rules.class_over)."""
         with self.sessions() as db:
             students = select(User).where(User.role == "student", User.batch_id.is_not(None))
             if scope is not None:
@@ -422,7 +423,8 @@ class AttendanceService:
                 )
             ):
                 leaves.setdefault(lv.user_id, []).append((lv.start, lv.end))
-            today = self.now_local().date()
+            now = self.now_local()
+            today = now.date()
             rows = []
             for u in users:
                 b = u.batch
@@ -437,7 +439,7 @@ class AttendanceService:
                             rows.append(_row(u, b, d, "holiday", None, None, None))
                         elif any(s0 <= d <= e0 for s0, e0 in leaves.get(u.id, [])):
                             rows.append(_row(u, b, d, "leave", None, None, None))
-                        elif d < today:
+                        elif class_over(now, d, b.end_time):
                             rows.append(_row(u, b, d, "absent", None, None, None))
                     d += timedelta(days=1)
             return sorted(rows, key=lambda r: (r["day"], r["full_name"]))

@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from faceai.api.app import create_app
 from faceai.attendance.models import User
-from faceai.attendance.rules import decide
+from faceai.attendance.rules import class_over, decide
 from faceai.attendance.security import (
     create_token,
     decode_token,
@@ -233,7 +233,7 @@ def test_admin_crm_scan_manual_reports(app_client):
     assert after["results"] == [] and after["unknown"] == 1
 
 
-def test_absent_rows_for_past_class_days(app_client):
+def test_absent_rows_for_past_class_days(app_client, monkeypatch):
     c = app_client
     h = _admin(c)
     batch = _always_open_batch(c, h)
@@ -243,8 +243,10 @@ def test_absent_rows_for_past_class_days(app_client):
         headers=h,
     ).json()["student"]["id"]
     svc = c.app.state.attendance
+    noon = datetime.combine(svc.now_local().date(), datetime.min.time(), IST).replace(hour=12)
+    monkeypatch.setattr(svc, "now_local", lambda: noon)  # class (00:00-23:59) abhi chal rahi
     with svc.sessions.begin() as db:
-        db.get(User, sid).enrollment_date = svc.now_local().date() - timedelta(days=3)
+        db.get(User, sid).enrollment_date = noon.date() - timedelta(days=3)
     rows = c.get(f"/v1/admin/attendance?user_id={sid}", headers=h).json()
     assert [r["status"] for r in rows] == ["absent", "absent", "absent"]  # aaj abhi absent nahi
 
@@ -358,3 +360,52 @@ def test_enrollment_date_uses_local_timezone_not_utc(app_client, monkeypatch):
         headers=h,
     ).json()
     assert rows == []  # 23 Nov ko student tha hi nahi -> koi absent nahi
+
+
+def test_class_over_rule():
+    end = "13:00"
+    day = datetime(2026, 11, 24, tzinfo=IST).date()
+    at = lambda h, m: datetime(2026, 11, 24, h, m, tzinfo=IST)  # noqa: E731
+    assert class_over(at(12, 59), day, end) is False  # class chal rahi
+    assert class_over(at(13, 0), day, end) is False  # end minute tak attendance lagti hai
+    assert class_over(at(13, 1), day, end) is True
+    assert class_over(at(9, 0), day - timedelta(days=1), end) is True  # kal: hamesha over
+    assert class_over(at(23, 0), day + timedelta(days=1), end) is False  # kal ki class
+
+
+def test_today_counts_absent_only_after_class_ends(app_client, monkeypatch):
+    """Regression: aaj absent student report se GAYAB tha (sirf kal se dikhta)."""
+    c = app_client
+    h = _admin(c)
+    svc = c.app.state.attendance
+    day = svc.now_local().date()
+    clock = {"now": datetime.combine(day, datetime.min.time(), IST).replace(hour=9, minute=30)}
+    monkeypatch.setattr(svc, "now_local", lambda: clock["now"])
+    b = c.post(
+        "/v1/admin/batches",
+        json={
+            "name": "Morning",
+            "start_time": "09:00",
+            "end_time": "13:00",
+            "days": "0,1,2,3,4,5,6",
+        },
+        headers=h,
+    ).json()["id"]
+    ids = [
+        c.post(
+            "/v1/admin/students",
+            json={"email": f"s{i}@x.in", "full_name": n, "batch_id": b, "consent": True},
+            headers=h,
+        ).json()["student"]["id"]
+        for i, n in enumerate(["Asha", "Bela"])
+    ]
+    c.post("/v1/admin/attendance/manual", json={"user_id": ids[0], "status": "present"}, headers=h)
+
+    def summary():
+        r = c.get(f"/v1/admin/reports/summary?start={day}&end={day}", headers=h).json()
+        return {s["full_name"]: (s["present"], s["absent"]) for s in r["students"]}
+
+    assert summary() == {"Asha": (1, 0)}  # 09:30: class chal rahi -> Bela abhi absent NAHI
+
+    clock["now"] = clock["now"].replace(hour=18)  # class 13:00 pe khatam
+    assert summary() == {"Asha": (1, 0), "Bela": (0, 1)}  # ab Bela absent dikhni chahiye

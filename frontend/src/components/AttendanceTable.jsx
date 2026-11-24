@@ -45,7 +45,7 @@ export default function AttendanceTable({ rows, showStudent = true, actions }) {
           <option value="holiday">Holiday</option>
         </select>
       </div>
-      <p className="text-xs text-slate-500">{view.length} records</p>
+      <p className="text-xs text-slate-500">{view.length} {view.length === 1 ? "record" : "records"}</p>
 
       {/* mobile cards */}
       <ul className="space-y-2 md:hidden">

@@ -17,6 +17,7 @@ const I = {
   sun: "M12 3v2m0 14v2m9-9h-2M5 12H3m14.36-6.36-1.42 1.42M7.06 16.94l-1.42 1.42m12.72 0-1.42-1.42M7.06 7.06 5.64 5.64M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z",
   leave: "M8 7V3m8 4V3M4 11h16M5 5h14v15H5zM9 15l2 2 4-4",
   user: "M16 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0M4 21c1-4 4-6 8-6s7 2 8 6",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
 };
 const TEACHER = [
   ["/admin", "Overview", I.home],
@@ -67,7 +68,12 @@ export default function Layout({ children }) {
   const nav = useNavigate();
   const { pathname } = useLocation();
   const online = useOnline();
+  const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => setMoreOpen(false), [pathname]); // page badla -> menu band
   const items = user.role === "admin" ? [...ADMIN, ["/profile", "Profile", I.user]] : user.role === "teacher" ? [...TEACHER, ["/profile", "Profile", I.user]] : STUDENT;
+  const primary = items.length > 5 ? items.slice(0, 4) : items;
+  const extra = items.length > 5 ? items.slice(4) : [];
+  const moreActive = extra.some(([to]) => isActive(pathname, to));
   const initials = user.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   const signOut = () => {
     logout();
@@ -133,10 +139,40 @@ export default function Layout({ children }) {
         <main className="mx-auto max-w-6xl px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
       </div>
 
-      {/* ---------- mobile bottom tab bar (thumb zone) ---------- */}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white dark:border-white/10 dark:bg-ink-900 md:hidden" aria-label="Main">
-        <div className="flex overflow-x-auto">
-          {items.map(([to, label, d]) => {
+      {/* ---------- mobile bottom tab bar (thumb zone) ----------
+          Admin ke 10 pages ek row mein fit nahi hote (pehle side-scroll mein chhup jaate the).
+          4 main tabs + "More" -> baaki pages ek list mein. */}
+      {moreOpen && <button className="fixed inset-0 z-20 bg-stone-900/20 md:hidden" aria-label="Close menu" onClick={() => setMoreOpen(false)} />}
+      <AnimatePresence>
+        {moreOpen && (
+          <motion.div
+            id="more-menu"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.15 }}
+            className="safe-bottom fixed inset-x-0 bottom-[57px] z-30 border-t border-stone-200 bg-white shadow-lift dark:border-white/10 dark:bg-ink-900 md:hidden"
+          >
+            <ul className="divide-y divide-stone-100 dark:divide-white/5">
+              {extra.map(([to, label, d]) => (
+                <li key={to}>
+                  <NavLink to={to} className={`flex min-h-[52px] items-center gap-3 px-5 text-[15px] ${isActive(pathname, to) ? "font-semibold text-brand-800 dark:text-brand-100" : "text-stone-700 dark:text-stone-300"}`}>
+                    <Icon d={d} /> {label}
+                  </NavLink>
+                </li>
+              ))}
+              <li>
+                <button onClick={signOut} className="flex min-h-[52px] w-full items-center gap-3 px-5 text-[15px] text-stone-700 dark:text-stone-300">
+                  <Icon d="M15 12H4m0 0l4-4m-4 4l4 4M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" /> Log out
+                </button>
+              </li>
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-30 border-t border-stone-200 bg-white dark:border-white/10 dark:bg-ink-900 md:hidden" aria-label="Main">
+        <div className="flex">
+          {primary.map(([to, label, d]) => {
             const active = isActive(pathname, to);
             return (
               <NavLink key={to} to={to} end={to === "/admin"} className={`relative flex min-h-[56px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors ${active ? "font-semibold text-brand-700 dark:text-brand-200" : "font-medium text-stone-500 dark:text-stone-400"}`}>
@@ -148,6 +184,18 @@ export default function Layout({ children }) {
               </NavLink>
             );
           })}
+          {extra.length > 0 && (
+            <button
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-expanded={moreOpen}
+              aria-controls="more-menu"
+              className={`relative flex min-h-[56px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors ${moreOpen || moreActive ? "font-semibold text-brand-700 dark:text-brand-200" : "font-medium text-stone-500 dark:text-stone-400"}`}
+            >
+              {moreActive && !moreOpen && <span className="absolute inset-x-3 top-0 h-[3px] rounded-b bg-brand-700 dark:bg-brand-300" />}
+              <Icon d={I.more} className="h-[22px] w-[22px]" />
+              More
+            </button>
+          )}
         </div>
       </nav>
     </div>

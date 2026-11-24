@@ -11,6 +11,7 @@ import { useAuth } from "./store/auth";
 
 // Admin pages lazy: student ke phone pe admin code (charts etc.) download hi nahi hota.
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const Profile = lazy(() => import("./pages/Profile"));
 const AdminOverview = lazy(() => import("./pages/admin/Overview"));
 const Students = lazy(() => import("./pages/admin/Students"));
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<PageTransition><Login /></PageTransition>} />
           <Route path="/signup" element={<PageTransition><Signup /></PageTransition>} />
+          <Route path="/forgot-password" element={<Suspense fallback={null}><PageTransition><ForgotPassword /></PageTransition></Suspense>} />
           {PAGES.map(([path, role, Page]) => (
             <Route key={path} path={path} element={<Guard role={role}><Page /></Guard>} />
           ))}

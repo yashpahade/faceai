@@ -30,3 +30,11 @@ def app_client_rl(settings):
         create_app(settings.model_copy(update={"rate_limit": True}), engine=FakeEngine())
     ) as c:
         yield c
+
+
+@pytest.fixture
+def app_client(settings):
+    """Attendance (product) API: JWT secret set. test_attendance + test_password_recovery."""
+    s = settings.model_copy(update={"jwt_secret": "test-secret-0123456789abcdef"})
+    with TestClient(create_app(s, engine=FakeEngine())) as c:
+        yield c

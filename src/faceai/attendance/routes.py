@@ -150,6 +150,22 @@ def face_login(body: sc.FaceLoginIn, request: Request, svc: AttendanceService = 
     return {"access_token": token, "user": sc.UserOut.of(u), "similarity": round(sim, 4)}
 
 
+@router.post("/auth/reset-password/face", response_model=sc.TokenOut, tags=["auth"])
+def reset_password_face(
+    body: sc.FaceResetIn, request: Request, svc: AttendanceService = Depends(get_svc)
+):
+    """Forgot password (email server ke bina): liveness flow -> yahan token + email + naya
+    password. Chehra usi email wale account ka hona chahiye. Success = naya password + login."""
+    emb = request.app.state.challenges.consume_token(body.liveness_token)
+    if emb is None:
+        raise HTTPException(401, "invalid or expired liveness token")
+    try:
+        u, token = svc.reset_password_with_face(body.email, emb, body.password)
+    except AuthError as e:
+        raise _err(e) from None
+    return {"access_token": token, "user": sc.UserOut.of(u)}
+
+
 # ================= me (student/admin) =================
 @router.get("/me", response_model=sc.UserOut, tags=["me"])
 def me(u: User = Depends(current_user)):
@@ -159,6 +175,20 @@ def me(u: User = Depends(current_user)):
 @router.patch("/me", response_model=sc.UserOut, tags=["me"])
 def update_me(body: sc.ProfileUpdate, u: User = Depends(current_user), svc=Depends(get_svc)):
     return sc.UserOut.of(svc.update_user(u.id, body.model_dump(exclude_none=True)))
+
+
+@router.post("/me/password", response_model=sc.TokenOut, tags=["me"])
+def change_my_password(
+    body: sc.ChangePasswordIn, u: User = Depends(current_user), svc=Depends(get_svc)
+):
+    """Purana password + naya. Baaki devices logout; ye device naye token se logged-in rehta hai."""
+    try:
+        user, token = svc.change_password(u.id, body.current_password, body.password)
+    except AuthError as e:
+        # 400, 401 NAHI: frontend har 401 pe logout karta hai -> galat purana password type
+        # karne pe user bahar phenk diya jaata. Session valid hai, sirf input galat hai.
+        raise HTTPException(400, str(e)) from None
+    return {"access_token": token, "user": sc.UserOut.of(user)}
 
 
 @router.post("/me/face", tags=["me"], status_code=201)
@@ -241,6 +271,20 @@ def update_student(
         return sc.UserOut.of(svc.update_user(user_id, body.model_dump(exclude_unset=True)))
     except NotFound as e:
         raise _err(e) from None
+
+
+@router.post(
+    "/admin/students/{user_id}/reset-password", response_model=sc.TempPasswordOut, tags=["admin"]
+)
+def reset_student_password(
+    user_id: str, request: Request, _: User = Depends(require_admin), svc=Depends(get_svc)
+):
+    """Temporary password (face enrolled nahi to forgot-password ka rasta yahi)."""
+    try:
+        u, temp = svc.admin_reset_password(user_id, request.state.actor)
+    except (NotFound, ForbiddenError) as e:
+        raise _err(e) from None
+    return {"user_id": u.id, "temporary_password": temp}
 
 
 @router.delete("/admin/students/{user_id}", tags=["admin"])

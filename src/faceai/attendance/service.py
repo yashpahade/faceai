@@ -142,6 +142,60 @@ class AttendanceService:
             logger.info("face login", extra={"user_id": u.id, "similarity": round(sim, 3)})
             return u, self._token(u, "face"), sim
 
+    # ---------- password recovery / change ----------
+    def reset_password_with_face(
+        self, email: str, live_embedding: np.ndarray, new_password: str
+    ) -> tuple:
+        """Forgot password (bina email server ke): liveness wala chehra + email.
+
+        Chehra identify hona chahiye (face-login jaisa threshold + margin) AUR wo usi email ke
+        account ka ho. Kisi aur ka chehra / galat email / face enrolled nahi -> ek hi generic
+        error (email registered hai ya nahi, ye leak nahi hona chahiye).
+        Ye face-login jitna hi strong hai (wo bhi poora session deta hai), isliye safe.
+        """
+        hit = self.identify(live_embedding)
+        with self.sessions.begin() as db:
+            u = db.scalar(select(User).where(User.email == email.strip().lower()))
+            if hit is None or u is None or u.person_id != hit[0] or u.status != "active":
+                raise AuthError("could not verify it's you")
+            u.password_hash = hash_password(new_password)
+            u.token_version += 1  # purane sessions (kisi aur device pe bhi) band
+            u.last_login_at = datetime.now(UTC)
+            logger.info(
+                "password reset via face", extra={"user_id": u.id, "similarity": round(hit[1], 3)}
+            )
+            return u, self._token(u, "face")
+
+    def change_password(self, user_id: str, current: str, new_password: str) -> tuple:
+        """Logged-in user: purana password zaroori.
+
+        Chura hua (khula) session akela password na badal sake.
+        """
+        with self.sessions.begin() as db:
+            u = self.get_user(db, user_id)
+            if not verify_password(current, u.password_hash):
+                raise AuthError("current password is incorrect")
+            u.password_hash = hash_password(new_password)
+            u.token_version += 1  # baaki devices logout; is device ko naya token
+            logger.info("password changed", extra={"user_id": u.id})
+            return u, self._token(u, "pwd")
+
+    def admin_reset_password(self, user_id: str, actor: str) -> tuple[User, str]:
+        """Admin: temporary password (face enrolled nahi / face reset fail).
+
+        Sirf ek baar dikhta hai. Doosre admin ka nahi - admin apna password CLI (create_admin)
+        se reset kare.
+        """
+        with self.sessions.begin() as db:
+            u = self.get_user(db, user_id)
+            if u.role == "admin":
+                raise ForbiddenError("admin passwords can't be reset here")
+            temp = secrets.token_urlsafe(9)
+            u.password_hash = hash_password(temp)
+            u.token_version += 1
+            logger.info("password reset by admin", extra={"user_id": u.id, "actor": actor})
+            return u, temp
+
     # ---------- face enrollment ----------
     def enroll_face(self, user_id: str, image_bgr, actor: str, replace: bool = False):
         with self.sessions.begin() as db:

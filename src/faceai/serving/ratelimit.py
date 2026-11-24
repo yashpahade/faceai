@@ -32,6 +32,7 @@ DEFAULT_RULES = [
     Rule("/v1/auth/login", 10, 10),
     Rule("/v1/auth/signup", 5, 5),
     Rule("/v1/auth/face-login", 10, 10),
+    Rule("/v1/auth/reset-password", 5, 5),  # account takeover attempts
     Rule("/v1/liveness/", 20, 20),
 ]
 

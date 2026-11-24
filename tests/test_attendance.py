@@ -5,9 +5,7 @@ from zoneinfo import ZoneInfo
 
 import cv2
 import pytest
-from fastapi.testclient import TestClient
 
-from faceai.api.app import create_app
 from faceai.attendance.models import User
 from faceai.attendance.rules import class_over, decide
 from faceai.attendance.security import (
@@ -16,7 +14,7 @@ from faceai.attendance.security import (
     hash_password,
     verify_password,
 )
-from tests.fakes import FakeEngine, make_image
+from tests.fakes import make_image
 
 IST = ZoneInfo("Asia/Kolkata")
 
@@ -66,13 +64,6 @@ def test_rules_no_class_on_weekend():
 
 
 # ---------- API ----------
-@pytest.fixture
-def app_client(settings):
-    s = settings.model_copy(update={"jwt_secret": "test-secret-0123456789abcdef"})
-    with TestClient(create_app(s, engine=FakeEngine())) as c:
-        yield c
-
-
 def _admin(c) -> dict:
     svc = c.app.state.attendance
     with svc.sessions.begin() as db:

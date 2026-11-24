@@ -4,61 +4,57 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { api } from "../api/client";
 import LivenessFlow from "../components/LivenessFlow";
-import { Aurora, ease, spring, toast } from "../components/motion";
-import { ThemeToggle } from "../components/ThemePicker";
+import { ease, toast } from "../components/motion";
 import { ErrorBox } from "../components/ui";
 import { useAuth } from "../store/auth";
 
 const FEATURES = [
-  ["Face login in 3 seconds", "No passwords, no queues"],
-  ["Liveness check", "Photos and screens can't fool it"],
-  ["Encrypted face data", "Templates, never photos"],
+  ["Face login in about three seconds", "No passwords to forget, no queue at the door."],
+  ["Checks that a real person is present", "A printed photo or a phone screen is rejected."],
+  ["Face data stays encrypted", "Only a numeric template is kept. Photos are never stored."],
 ];
 
 export function AuthShell({ children, title, subtitle }) {
   return (
-    <div className="relative min-h-screen">
-      <Aurora />
-      <ThemeToggle className="absolute right-4 top-4 z-10 bg-white/60 backdrop-blur dark:bg-white/5" />
-      <div className="mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-4 py-8 lg:grid-cols-[1.1fr_1fr] lg:px-8">
-        <motion.div initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, ease }} className="hidden lg:block">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-brand-200/70 bg-white/60 px-3 py-1 text-xs font-semibold text-brand-700 backdrop-blur dark:border-white/10 dark:bg-white/5 dark:text-brand-200">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> Biometric attendance
-          </div>
-          <h1 className="text-5xl font-bold leading-[1.05] tracking-tight xl:text-6xl">
-            Attendance that <span className="text-gradient">recognizes</span> you.
-          </h1>
-          <p className="mt-5 max-w-md text-lg text-slate-600 dark:text-slate-400">
-            Look at the camera, turn your head, done. Built for classrooms, coaching centres and offices.
+    <div className="min-h-screen lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]">
+      {/* Left: maroon panel, institution letterhead jaisa (sirf bade screens pe) */}
+      <aside className="relative hidden flex-col justify-between bg-brand-800 px-12 py-10 text-[#f7f4ef] lg:flex">
+        <div className="flex items-center gap-3">
+          <img src="/icon.svg" alt="" className="h-10 w-10 rounded" />
+          <span className="font-display text-xl font-semibold">FaceAI Pro</span>
+        </div>
+        <div className="max-w-md">
+          <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-accent-400">Attendance register</p>
+          <h1 className="text-[2.6rem] font-semibold leading-[1.15]">Attendance, marked by a glance at the camera.</h1>
+          <p className="mt-5 text-[15px] leading-relaxed text-[#f7f4ef]/75">
+            For classrooms, coaching centres and offices. Students look at the camera, turn their head once, and they are marked present.
           </p>
-          <ul className="mt-10 space-y-4">
-            {FEATURES.map(([t, d], i) => (
-              <motion.li key={t} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.1, duration: 0.5, ease }} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow">
-                  <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
-                    <path d="M5 13l4 4L19 7" />
-                  </svg>
-                </span>
-                <span>
-                  <span className="block font-semibold">{t}</span>
-                  <span className="block text-sm text-slate-500">{d}</span>
-                </span>
-              </motion.li>
+          <ul className="mt-10 divide-y divide-white/15 border-y border-white/15">
+            {FEATURES.map(([t, d]) => (
+              <li key={t} className="py-4">
+                <p className="font-semibold">{t}</p>
+                <p className="mt-0.5 text-sm text-[#f7f4ef]/65">{d}</p>
+              </li>
             ))}
           </ul>
-        </motion.div>
+        </div>
+        <p className="text-xs text-[#f7f4ef]/50">Biometric data is used only for attendance, with consent.</p>
+      </aside>
 
-        <motion.div initial={{ opacity: 0, y: 24, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 0.6, ease, delay: 0.05 }} className="mx-auto w-full max-w-md">
-          <div className="mb-6 text-center lg:hidden">
-            <img src="/icon.svg" alt="" className="mx-auto h-14 w-14 drop-shadow-lg" />
-          </div>
-          <div className="glass p-5 sm:p-7">
-            <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
-            {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
-            <div className="mt-5">{children}</div>
-          </div>
+      {/* Right: form */}
+      <main className="flex min-h-screen flex-col px-4 py-8 sm:px-8 lg:min-h-0 lg:justify-center lg:px-16">
+        <div className="flex items-center justify-between lg:hidden">
+          <span className="flex items-center gap-2">
+            <img src="/icon.svg" alt="" className="h-9 w-9 rounded" />
+            <span className="font-display text-xl font-semibold text-brand-800">FaceAI Pro</span>
+          </span>
+        </div>
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, ease }} className="mx-auto mt-10 w-full max-w-md lg:mt-0">
+          <h2 className="text-[1.9rem] font-semibold text-stone-900 dark:text-stone-50">{title}</h2>
+          {subtitle && <p className="mt-1.5 text-[15px] text-stone-600 dark:text-stone-400">{subtitle}</p>}
+          <div className="mt-7">{children}</div>
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -102,25 +98,24 @@ export default function Login() {
 
   return (
     <AuthShell title="Welcome back" subtitle="Sign in to mark your attendance">
-      <div className="mb-5 grid grid-cols-2 rounded-2xl bg-slate-100/80 p-1 dark:bg-white/5" role="tablist">
+      <div className="mb-6 grid grid-cols-2 border-b border-stone-200 dark:border-white/10" role="tablist">
         {[
           ["face", "Face login"],
           ["password", "Email & password"],
         ].map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={`relative min-h-[42px] rounded-xl text-sm font-semibold transition-colors ${mode === k ? "text-slate-900 dark:text-white" : "text-slate-500"}`}>
-            {mode === k && <motion.span layoutId="login-tab" transition={spring} className="absolute inset-0 rounded-xl bg-white shadow-soft dark:bg-white/10" />}
-            <span className="relative">{label}</span>
+          <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={`relative -mb-px min-h-[44px] border-b-2 text-sm transition-colors ${mode === k ? "border-brand-700 font-semibold text-brand-800 dark:border-brand-300 dark:text-brand-100" : "border-transparent font-medium text-stone-500 hover:text-stone-800"}`}>
+            {label}
           </button>
         ))}
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
         {mode === "face" ? (
-          <motion.div key="face" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 16 }} transition={{ duration: 0.25 }}>
+          <motion.div key="face" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             <LivenessFlow onToken={faceLogin} actionLabel="Sign in with my face" successTitle="Face verified" />
           </motion.div>
         ) : (
-          <motion.form key="pwd" onSubmit={passwordLogin} className="space-y-4" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
+          <motion.form key="pwd" onSubmit={passwordLogin} className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             <div>
               <label className="label" htmlFor="email">Email</label>
               <input id="email" className="input" type="email" autoComplete="username" placeholder="you@school.in" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -138,9 +133,9 @@ export default function Login() {
         )}
       </AnimatePresence>
 
-      <p className="mt-6 text-center text-sm text-slate-500">
+      <p className="mt-8 border-t border-stone-200 pt-5 text-sm text-stone-600 dark:border-white/10 dark:text-stone-400">
         New student?{" "}
-        <Link to="/signup" className="font-semibold text-brand-600 hover:underline dark:text-brand-300">
+        <Link to="/signup" className="font-semibold text-brand-700 underline decoration-brand-300 underline-offset-2 hover:decoration-brand-700 dark:text-brand-300">
           Create an account
         </Link>
       </p>

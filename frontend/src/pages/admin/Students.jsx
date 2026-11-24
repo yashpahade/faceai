@@ -80,16 +80,16 @@ export function StudentCard({ s, batch }) {
   const initials = s.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase();
   return (
     <Link to={`/admin/students/${s.id}`} className="card card-hover group flex items-center gap-3 p-4">
-      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-accent-500 font-bold text-white shadow-glow transition group-hover:rotate-3 group-hover:scale-105">
+      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 font-semibold text-brand-800 dark:bg-brand-500/20 dark:text-brand-100">
         {initials}
-        {s.face_enrolled && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] ring-2 ring-white dark:ring-ink-850" title="Face enrolled">✓</span>}
+        {s.face_enrolled && <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-green-700 text-[10px] text-white ring-2 ring-white dark:ring-ink-850" title="Face enrolled">✓</span>}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold">{s.full_name}</p>
         <p className="truncate text-xs text-slate-500">{s.roll_no ? `${s.roll_no} · ` : ""}{batch}</p>
         <div className="mt-1 flex gap-1">
           <StatusBadge status={s.status} />
-          {!s.face_enrolled && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">no face</span>}
+          {!s.face_enrolled && <span className="rounded bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-800">no face</span>}
         </div>
       </div>
     </Link>

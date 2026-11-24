@@ -2,12 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export const ACCENTS = [
-  ["indigo", "Indigo", "#6366f1"],
-  ["ocean", "Ocean", "#0ea5e9"],
-  ["emerald", "Emerald", "#10b981"],
-  ["sunset", "Sunset", "#f97316"],
-  ["rose", "Rose", "#f43f5e"],
+  ["maroon", "Maroon", "#701a27"],
+  ["forest", "Forest", "#1d4c30"],
+  ["navy", "Navy", "#1f345c"],
 ];
+
+// Browser address bar ka rang (Android Chrome / PWA)
+const BAR = { light: "#701a27", dark: "#141110" };
 
 const media = () => window.matchMedia?.("(prefers-color-scheme: dark)");
 
@@ -17,16 +18,21 @@ export function applyTheme({ mode, accent }) {
   root.classList.toggle("dark", !!dark);
   root.dataset.accent = accent;
   root.style.colorScheme = dark ? "dark" : "light";
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#070a13" : ACCENTS.find((a) => a[0] === accent)?.[2] || "#6366f1");
+  const hex = ACCENTS.find((a) => a[0] === accent)?.[2] || BAR.light;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? BAR.dark : hex);
 }
 
 // Per-device preference (localStorage). public/theme-init.js isi key ko page load se PEHLE padhta
 // hai, taaki galat theme ka "flash" na dikhe.
+// Key v2: naye design (light + maroon) pe sab devices fresh shuru hon; purani "indigo/system"
+// setting carry over na ho.
+export const THEME_KEY = "faceai-theme-v2";
+
 export const useTheme = create(
   persist(
     (set, get) => ({
-      mode: "system", // system | light | dark
-      accent: "indigo",
+      mode: "light", // light | dark | system
+      accent: "maroon",
       setMode: (mode) => {
         set({ mode });
         applyTheme(get());
@@ -36,11 +42,11 @@ export const useTheme = create(
         applyTheme(get());
       },
       cycleMode: () => {
-        const next = { system: "light", light: "dark", dark: "system" }[get().mode];
+        const next = { light: "dark", dark: "system", system: "light" }[get().mode];
         get().setMode(next);
       },
     }),
-    { name: "faceai-theme" },
+    { name: THEME_KEY },
   ),
 );
 

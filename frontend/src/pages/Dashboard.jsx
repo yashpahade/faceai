@@ -44,20 +44,18 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* hero */}
-      <motion.section initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-brand-600 via-brand-500 to-accent-500 p-5 text-white shadow-glow sm:p-7">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/15 blur-2xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-10 h-48 w-48 rounded-full bg-accent-400/40 blur-3xl" />
+      <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative overflow-hidden rounded-lg border-l-4 border-accent-500 bg-brand-800 p-5 text-[#f7f4ef] sm:p-7">
         <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-white/80">{greet()},</p>
-            <h1 className="text-3xl font-bold tracking-tight">{user.full_name.split(" ")[0]} 👋</h1>
-            <p className="mt-2 text-sm text-white/85">
+            <p className="text-sm text-[#f7f4ef]/75">{greet()},</p>
+            <h1 className="text-3xl font-semibold">{user.full_name.split(" ")[0]}</h1>
+            <p className="mt-2 text-sm text-[#f7f4ef]/80">
               {markedToday ? "You're marked for today. See you tomorrow!" : "Ready? Mark today's attendance with your face."}
             </p>
           </div>
           {!marking && !markedToday && (
             <button
-              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-white px-5 font-semibold text-brand-700 shadow-lg transition hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60"
+              className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-md bg-[#f7f4ef] px-5 font-semibold text-brand-800 transition-colors hover:bg-white disabled:opacity-60"
               disabled={!user.face_enrolled}
               onClick={() => {
                 setResult(null);

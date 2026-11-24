@@ -20,16 +20,15 @@ function Steps({ step }) {
         const state = step > n ? "done" : step === n ? "now" : "next";
         return (
           <li key={label} className="flex flex-1 items-center gap-2">
-            <motion.span
-              animate={{ scale: state === "now" ? 1.08 : 1 }}
-              className={`flex h-7 w-7 items-center justify-center rounded-full ${state === "next" ? "bg-slate-200 text-slate-500 dark:bg-white/10" : "bg-gradient-to-br from-brand-500 to-accent-500 text-white shadow-glow"}`}
+            <span
+              className={`flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${state === "next" ? "border border-stone-300 text-stone-500 dark:border-white/20" : "bg-brand-700 text-white"}`}
             >
               {state === "done" ? "✓" : n}
-            </motion.span>
+            </span>
             <span className={state === "next" ? "text-slate-400" : ""}>{label}</span>
             {i === 0 && (
               <span className="relative h-0.5 flex-1 overflow-hidden rounded bg-slate-200 dark:bg-white/10">
-                <motion.span className="absolute inset-y-0 left-0 bg-gradient-to-r from-brand-500 to-accent-500" animate={{ width: step > 1 ? "100%" : "0%" }} transition={{ duration: 0.6 }} />
+                <motion.span className="absolute inset-y-0 left-0 bg-brand-700" animate={{ width: step > 1 ? "100%" : "0%" }} transition={{ duration: 0.3 }} />
               </span>
             )}
           </li>
@@ -96,9 +95,9 @@ export default function Signup() {
   return (
     <AuthShell title="Create your account" subtitle="Two quick steps, under a minute">
       <Steps step={step} />
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         {step === 1 ? (
-          <motion.form key="s1" onSubmit={register} noValidate className="space-y-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <motion.form key="s1" onSubmit={register} noValidate className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             <Field id="full_name" label="Full name" error={errs.full_name} touched={touched.full_name}>
               <input id="full_name" className="input" autoComplete="name" placeholder="Asha Rao" value={form.full_name} aria-invalid={!!(touched.full_name && errs.full_name)} onBlur={touch("full_name")} onChange={(e) => setForm({ ...form, full_name: sanitizeName(e.target.value) })} />
             </Field>
@@ -126,7 +125,7 @@ export default function Signup() {
         ) : done ? (
           <SuccessBurst key="done" title="You're all set!" subtitle="Taking you to your dashboard…" />
         ) : (
-          <motion.div key="s2" className="space-y-4" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+          <motion.div key="s2" className="space-y-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
             <FaceCamera ref={cam} state={busy ? "scanning" : error ? "error" : "idle"} hint={busy ? "Hold still…" : "Face inside the oval, look straight"} />
             <ErrorBox error={error} />
             <button className="btn-primary w-full" onClick={enroll} disabled={busy}>

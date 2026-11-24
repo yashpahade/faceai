@@ -77,20 +77,20 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen md:flex">
       {/* ---------- desktop sidebar ---------- */}
-      <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-slate-200/70 bg-white/70 p-4 backdrop-blur-xl dark:border-white/[0.06] dark:bg-ink-900/70 md:flex">
-        <div className="mb-8 flex items-center gap-2.5 px-2 pt-1">
-          <img src="/icon.svg" alt="" className="h-9 w-9 drop-shadow" />
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-stone-200 bg-white dark:border-white/[0.08] dark:bg-ink-900 md:flex">
+        <div className="flex items-center gap-2.5 border-b border-stone-200 px-5 py-4 dark:border-white/[0.08]">
+          <img src="/icon.svg" alt="" className="h-8 w-8" />
           <div>
-            <p className="text-[15px] font-bold leading-tight">FaceAI Pro</p>
-            <p className="text-[11px] font-medium text-slate-500">Attendance, simplified</p>
+            <p className="font-display text-[17px] font-semibold leading-tight text-brand-800 dark:text-brand-200">FaceAI Pro</p>
+            <p className="text-[11px] text-stone-500">Attendance register</p>
           </div>
         </div>
-        <nav className="flex-1 space-y-1" aria-label="Main">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4" aria-label="Main">
           {items.map(([to, label, d]) => {
             const active = isActive(pathname, to);
             return (
-              <NavLink key={to} to={to} end={to === "/admin"} className={`relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors ${active ? "text-brand-700 dark:text-white" : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"}`}>
-                {active && <motion.span layoutId="side-pill" transition={spring} className="absolute inset-0 rounded-xl bg-gradient-to-r from-brand-100 to-brand-50 shadow-sm ring-1 ring-brand-200/60 dark:from-brand-500/25 dark:to-accent-500/10 dark:ring-white/10" />}
+              <NavLink key={to} to={to} end={to === "/admin"} className={`relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${active ? "bg-brand-50 font-semibold text-brand-800 dark:bg-brand-500/15 dark:text-brand-100" : "font-medium text-stone-600 hover:bg-stone-100 hover:text-stone-900 dark:text-stone-400 dark:hover:bg-white/5 dark:hover:text-white"}`}>
+                {active && <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r bg-brand-700 dark:bg-brand-300" />}
                 <span className="relative flex items-center gap-3">
                   <Icon d={d} /> {label}
                 </span>
@@ -98,14 +98,14 @@ export default function Layout({ children }) {
             );
           })}
         </nav>
-        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-200/70 p-2.5 dark:border-white/[0.06]">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-sm font-bold text-white">{initials}</div>
+        <div className="flex items-center gap-3 border-t border-stone-200 p-3 dark:border-white/[0.08]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-700 text-sm font-semibold text-white">{initials}</div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{user.full_name}</p>
             <p className="truncate text-xs capitalize text-slate-500">{user.role}</p>
           </div>
           <ThemeToggle />
-          <button onClick={signOut} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/10 dark:hover:text-white" aria-label="Log out" title="Log out">
+          <button onClick={signOut} className="rounded-md p-2 text-stone-500 hover:bg-stone-100 hover:text-stone-900 dark:hover:bg-white/10 dark:hover:text-white" aria-label="Log out" title="Log out">
             <Icon d="M15 12H4m0 0l4-4m-4 4l4 4M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5" />
           </button>
         </div>
@@ -113,35 +113,34 @@ export default function Layout({ children }) {
 
       <div className="min-w-0 flex-1">
         {/* ---------- mobile header ---------- */}
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-200/70 bg-white/75 px-4 py-3 backdrop-blur-xl dark:border-white/[0.06] dark:bg-ink-950/75 md:hidden">
-          <span className="flex items-center gap-2 font-bold">
-            <img src="/icon.svg" alt="" className="h-7 w-7" /> FaceAI Pro
+        <header className="sticky top-0 z-20 flex items-center justify-between bg-brand-700 px-4 py-2.5 text-white dark:bg-ink-900 md:hidden">
+          <span className="flex items-center gap-2 font-display text-lg font-semibold">
+            <img src="/icon.svg" alt="" className="h-7 w-7 rounded" /> FaceAI Pro
           </span>
           <span className="flex items-center gap-1">
-            <ThemeToggle />
-            <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-accent-500 text-xs font-bold text-white" aria-label="Log out">
+            <button onClick={signOut} className="flex h-9 w-9 items-center justify-center rounded-full border border-white/40 text-xs font-semibold text-white" aria-label="Log out">
               {initials}
             </button>
           </span>
         </header>
         <AnimatePresence>
           {!online && (
-            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden bg-amber-100 text-center text-sm text-amber-900 dark:bg-amber-500/15 dark:text-amber-200">
+            <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden border-b border-amber-200 bg-amber-50 text-center text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-200">
               <p className="px-4 py-2">You're offline · showing saved data · attendance can't be marked offline</p>
             </motion.div>
           )}
         </AnimatePresence>
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 pb-24 pt-5 md:px-8 md:pb-10 md:pt-8">{children}</main>
       </div>
 
       {/* ---------- mobile bottom tab bar (thumb zone) ---------- */}
-      <nav className="safe-bottom fixed inset-x-3 bottom-3 z-20 md:hidden" aria-label="Main">
-        <div className="glass flex overflow-x-auto p-1.5">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white dark:border-white/10 dark:bg-ink-900 md:hidden" aria-label="Main">
+        <div className="flex overflow-x-auto">
           {items.map(([to, label, d]) => {
             const active = isActive(pathname, to);
             return (
-              <NavLink key={to} to={to} end={to === "/admin"} className={`relative flex min-h-[52px] min-w-[60px] flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl text-[10.5px] font-semibold transition-colors ${active ? "text-white" : "text-slate-500 dark:text-slate-400"}`}>
-                {active && <motion.span layoutId="tab-pill" transition={spring} className="absolute inset-0 rounded-2xl bg-gradient-to-br from-brand-600 to-accent-500 shadow-glow" />}
+              <NavLink key={to} to={to} end={to === "/admin"} className={`relative flex min-h-[56px] min-w-[64px] flex-1 flex-col items-center justify-center gap-0.5 text-[11px] transition-colors ${active ? "font-semibold text-brand-700 dark:text-brand-200" : "font-medium text-stone-500 dark:text-stone-400"}`}>
+                {active && <motion.span layoutId="tab-line" transition={spring} className="absolute inset-x-3 top-0 h-[3px] rounded-b bg-brand-700 dark:bg-brand-300" />}
                 <span className="relative flex flex-col items-center gap-0.5">
                   <Icon d={d} className="h-[22px] w-[22px]" />
                   {label}

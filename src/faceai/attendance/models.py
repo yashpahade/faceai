@@ -11,6 +11,8 @@ standard pattern hai: product DB leak ho to bhi chehre ka data usmein nahi.
 
 from __future__ import annotations
 
+import logging
+import time
 import uuid
 from datetime import UTC, date, datetime
 
@@ -29,7 +31,10 @@ from sqlalchemy import (
     event,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship, sessionmaker
+
+logger = logging.getLogger(__name__)
 
 
 def _uuid() -> str:
@@ -163,6 +168,35 @@ def make_sessionmaker(engine: Engine) -> sessionmaker:
     return sessionmaker(bind=engine, expire_on_commit=False)
 
 
-def create_all(engine: Engine) -> None:
-    """Dev/test ke liye. Prod (Postgres) mein Alembic migrations (Phase E)."""
-    Base.metadata.create_all(engine)
+def _is_concurrent_create(err: DBAPIError) -> bool:
+    """Kya ye error sirf isliye aaya ki KISI AUR process ne wahi table abhi-abhi bana di?
+
+    SQLite: "table X already exists". Postgres: "relation X already exists", ya do CREATE TABLE
+    ek saath chalein to pg_type catalog pe duplicate key.
+    """
+    msg = str(err.orig).lower()
+    return "already exists" in msg or "pg_type_typname_nsp_index" in msg
+
+
+def create_all(engine: Engine, attempts: int = 3) -> None:
+    """Dev/test ke liye. Prod (Postgres) mein Alembic migrations (Phase E).
+
+    Race condition: `create_all` pehle check karta hai "table hai?", phir banata hai. Do processes
+    (e.g. do backend ek saath start) dono "nahi hai" dekh ke dono banane chalein to doosra
+    "already exists" se crash hota tha. Fix: sirf ISI error pe thoda ruk ke retry - agli baar check
+    table ko maujood dekhega aur skip karega (idempotent DDL). Baaki saare DB errors turant raise.
+    """
+    for attempt in range(1, attempts + 1):
+        try:
+            Base.metadata.create_all(engine)
+            return
+        except DBAPIError as e:
+            if attempt == attempts or not _is_concurrent_create(e):
+                raise
+            logger.warning(
+                "schema create raced with another process (%s); retrying %d/%d",
+                str(e.orig).splitlines()[0],
+                attempt,
+                attempts - 1,
+            )
+            time.sleep(0.2 * attempt)

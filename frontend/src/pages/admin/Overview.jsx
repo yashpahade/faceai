@@ -75,7 +75,7 @@ export default function Overview() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{r.full_name}</span>
-                    <span className="block text-xs capitalize text-slate-500">{r.method} · {ago(r.marked_at)}</span>
+                    <span className="block text-xs text-slate-500"><span className="capitalize">{r.method}</span> · {ago(r.marked_at)}</span>
                   </span>
                   <StatusBadge status={r.status} />
                 </StaggerItem>

@@ -59,19 +59,16 @@ export default function Reports() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.days} margin={{ left: -20 }}>
-                  <defs>
-                    <linearGradient id="g-present" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#34d399" /><stop offset="100%" stopColor="#059669" /></linearGradient>
-                    <linearGradient id="g-late" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fbbf24" /><stop offset="100%" stopColor="#d97706" /></linearGradient>
-                    <linearGradient id="g-absent" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#fb7185" /><stop offset="100%" stopColor="#e11d48" /></linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#94a3b833" />
-                  <XAxis dataKey="day" tickFormatter={(d) => d.slice(5)} fontSize={11} />
-                  <YAxis allowDecimals={false} fontSize={11} />
-                  <Tooltip cursor={{ fill: "rgba(99,102,241,.08)" }} contentStyle={{ borderRadius: 12, border: "none", boxShadow: "0 10px 30px -10px rgba(15,23,42,.3)" }} />
+                  {/* Solid rang (status badges jaise). Pehle url(#gradient) fill tha jo bars pe paint
+                      hi nahi hota tha -> chart khaali dikhta tha. */}
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#a8a29e44" />
+                  <XAxis dataKey="day" tickFormatter={(d) => d.slice(5)} fontSize={11} stroke="#78716c" />
+                  <YAxis allowDecimals={false} fontSize={11} stroke="#78716c" />
+                  <Tooltip cursor={{ fill: "rgba(120,113,108,.08)" }} contentStyle={{ borderRadius: 6, border: "1px solid #e7e5e4", boxShadow: "0 4px 12px -6px rgba(41,37,36,.2)" }} />
                   <Legend />
-                  <Bar dataKey="present" stackId="a" fill="url(#g-present)" name="Present" animationDuration={900} />
-                  <Bar dataKey="late" stackId="a" fill="url(#g-late)" name="Late" animationDuration={900} />
-                  <Bar dataKey="absent" stackId="a" fill="url(#g-absent)" name="Absent" animationDuration={900} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="present" stackId="a" fill="#15803d" name="Present" maxBarSize={48} isAnimationActive={false} />
+                  <Bar dataKey="late" stackId="a" fill="#b45309" name="Late" maxBarSize={48} isAnimationActive={false} />
+                  <Bar dataKey="absent" stackId="a" fill="#b91c1c" name="Absent" maxBarSize={48} isAnimationActive={false} radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

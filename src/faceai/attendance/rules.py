@@ -13,7 +13,7 @@ bhi "9 baje ki class" 9 baje IST hi rahe.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 
 
 @dataclass
@@ -49,3 +49,17 @@ def decide(
         return Decision(False, None, f"class ended at {end}")
     late = now_local > start_dt + timedelta(minutes=late_after_min)
     return Decision(True, "late" if late else "present", "ok")
+
+
+def class_over(now_local: datetime, day: date, end: str) -> bool:
+    """Us din ki class khatam ho chuki?
+
+    `decide` jaisa hi niyam: end time ke BAAD attendance nahi lagti.
+
+    Purane din hamesha "over". Aaj sirf end time ke baad - tab hi bina record wala student pakka
+    absent hai. Class chal rahi ho to absent mat gino (student abhi aa sakta hai).
+    """
+    today = now_local.date()
+    if day != today:
+        return day < today
+    return now_local > datetime.combine(day, _t(end), now_local.tzinfo)

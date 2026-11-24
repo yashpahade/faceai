@@ -26,6 +26,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    TypeDecorator,
     UniqueConstraint,
     create_engine,
     event,
@@ -43,6 +44,31 @@ def _uuid() -> str:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+class UTCDateTime(TypeDecorator):
+    """Hamesha timezone-aware UTC datetime wapas do.
+
+    Bug: SQLite timezone store nahi karta -> padha gaya time "naive" (bina tz) aata tha ->
+    API `2026-11-24T16:20:52` bhejti (bina Z) -> browser use LOCAL (IST) samajhta -> har
+    timestamp 5.5 ghante galat ("3 min pehle" => "6h ago"). Postgres aware deta hai, isliye bug
+    sirf dev/SQLite mein tha.
+    Fix: likhte waqt UTC mein normalize, padhte waqt naive ho to UTC label lagao.
+    DB column type wahi (DateTime(timezone=True)) -> koi migration nahi.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(UTC)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None and value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value
 
 
 class Base(DeclarativeBase):
@@ -69,7 +95,7 @@ class Batch(Base):
     days: Mapped[str] = mapped_column(String(20), default="0,1,2,3,4")  # Mon=0 .. Sun=6
     late_after_min: Mapped[int] = mapped_column(Integer, default=10)
     open_before_min: Mapped[int] = mapped_column(Integer, default=15)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=_now)
 
     students: Mapped[list[User]] = relationship(back_populates="batch")
 
@@ -89,8 +115,8 @@ class User(Base):
     # Biometric store ka person id (face enroll ke baad set hota hai)
     person_id: Mapped[str | None] = mapped_column(String(32), unique=True)
     enrollment_date: Mapped[date] = mapped_column(Date, default=lambda: _now().date())
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
-    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=_now)
+    last_login_at: Mapped[datetime | None] = mapped_column(UTCDateTime())
     # Password change / logout-all pe badhao -> purane JWT invalid
     token_version: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -108,7 +134,7 @@ class Attendance(Base):
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     batch_id: Mapped[str] = mapped_column(ForeignKey("batches.id", ondelete="CASCADE"), index=True)
     day: Mapped[date] = mapped_column(Date, index=True)  # local date (settings.timezone)
-    marked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    marked_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=_now)
     status: Mapped[str] = mapped_column(String(10))  # present | late | absent
     method: Mapped[str] = mapped_column(String(10))  # face | manual
     confidence: Mapped[float | None] = mapped_column(Float)  # face similarity
@@ -130,7 +156,7 @@ class Holiday(Base):
     name: Mapped[str] = mapped_column(String(100))
     batch_id: Mapped[str | None] = mapped_column(ForeignKey("batches.id", ondelete="CASCADE"))
     created_by: Mapped[str] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=_now)
 
 
 class Leave(Base):
@@ -145,7 +171,7 @@ class Leave(Base):
     reason: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(10), default="pending")  # pending|approved|rejected
     decided_by: Mapped[str | None] = mapped_column(String(64))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime(), default=_now)
 
     user: Mapped[User] = relationship()
 

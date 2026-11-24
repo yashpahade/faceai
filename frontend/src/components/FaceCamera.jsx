@@ -7,11 +7,12 @@ import { captureJpeg } from "../lib/image";
 // state: "idle" | "scanning" | "success" | "error"  -> ring color + motion.
 // Mobile: front camera ("user"), playsInline (iOS fullscreen nahi). Preview CSS se mirror,
 // captured frames un-mirrored (backend liveness image coordinates use karta hai).
+// Oval ka rang = state ka saaf signal (solid, koi ghoomta gradient nahi)
 const RING = {
-  idle: "from-white/80 to-white/40",
-  scanning: "from-brand-400 via-accent-400 to-brand-400",
-  success: "from-emerald-400 to-teal-300",
-  error: "from-red-500 to-rose-400",
+  idle: "border-white/80",
+  scanning: "border-accent-400",
+  success: "border-green-500",
+  error: "border-red-500",
 };
 
 const FaceCamera = forwardRef(function FaceCamera(
@@ -70,7 +71,7 @@ const FaceCamera = forwardRef(function FaceCamera(
   }));
 
   return (
-    <div className={`relative aspect-[3/4] w-full overflow-hidden rounded-[1.75rem] bg-ink-950 shadow-lift ring-1 ring-black/5 sm:aspect-video ${className}`}>
+    <div className={`relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-ink-950 ring-1 ring-black/10 sm:aspect-video ${className}`}>
       <video
         ref={videoRef}
         muted
@@ -84,18 +85,12 @@ const FaceCamera = forwardRef(function FaceCamera(
           {/* dim outside the oval */}
           <div className="absolute inset-0 bg-ink-950/35 [mask-image:radial-gradient(ellipse_28%_33%_at_50%_50%,transparent_96%,black_100%)] sm:[mask-image:radial-gradient(ellipse_17%_36%_at_50%_50%,transparent_96%,black_100%)]" />
           <div className="relative h-[66%] w-[56%] max-w-[270px] sm:h-[72%] sm:w-[34%]">
-            {state === "scanning" && <span className="absolute inset-0 animate-ring rounded-[50%] border-2 border-brand-300/70" />}
-            {/* gradient ring via padding + mask */}
+            {state === "scanning" && <span className="absolute inset-0 animate-ring rounded-[50%] border-2 border-accent-400/70" />}
             <motion.div
-              className={`absolute inset-0 rounded-[50%] bg-gradient-to-tr p-[3px] ${RING[state]} [mask:linear-gradient(#000_0_0)_content-box,linear-gradient(#000_0_0)] [mask-composite:exclude] [-webkit-mask-composite:xor]`}
-              animate={state === "scanning" ? { rotate: 360 } : state === "error" ? { x: [0, -8, 8, -5, 5, 0] } : { rotate: 0, x: 0 }}
-              transition={state === "scanning" ? { repeat: Infinity, duration: 3, ease: "linear" } : { duration: 0.45 }}
+              className={`absolute inset-0 rounded-[50%] border-[3px] transition-colors ${RING[state]}`}
+              animate={state === "error" ? { x: [0, -8, 8, -5, 5, 0] } : { x: 0 }}
+              transition={{ duration: 0.45 }}
             />
-            {state === "scanning" && (
-              <div className="absolute inset-0 overflow-hidden rounded-[50%]">
-                <span className="absolute left-0 right-0 h-16 -translate-y-1/2 animate-scan bg-gradient-to-b from-transparent via-brand-300/40 to-transparent" />
-              </div>
-            )}
           </div>
           {/* corner brackets */}
           {["left-4 top-4 border-l-2 border-t-2 rounded-tl-xl", "right-4 top-4 border-r-2 border-t-2 rounded-tr-xl", "bottom-4 left-4 border-b-2 border-l-2 rounded-bl-xl", "bottom-4 right-4 border-b-2 border-r-2 rounded-br-xl"].map((c) => (
@@ -117,7 +112,7 @@ const FaceCamera = forwardRef(function FaceCamera(
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.3 }}
-            className="absolute inset-x-3 bottom-3 rounded-2xl bg-black/55 px-4 py-3 text-center text-base font-semibold text-white backdrop-blur-md"
+            className="absolute inset-x-3 bottom-3 rounded-md bg-black/70 px-4 py-3 text-center text-base font-semibold text-white"
           >
             {hint}
           </motion.div>

@@ -5,11 +5,12 @@ import { AnimatedNumber, motion, Skeleton, StaggerItem } from "./motion";
 
 import { api } from "../api/client";
 
+// [icon tile, value text]. Saade, dabe hue rang - number padhna asaan, aankhon pe zor nahi.
 const TONES = {
-  brand: ["from-brand-500 to-accent-500", "text-brand-600 dark:text-brand-300"],
-  green: ["from-emerald-500 to-teal-400", "text-emerald-600 dark:text-emerald-400"],
-  amber: ["from-amber-500 to-orange-400", "text-amber-600 dark:text-amber-400"],
-  red: ["from-rose-500 to-red-500", "text-red-600 dark:text-red-400"],
+  brand: ["bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300", "text-stone-900 dark:text-stone-100"],
+  green: ["bg-green-50 text-green-800 dark:bg-green-500/15 dark:text-green-300", "text-green-800 dark:text-green-300"],
+  amber: ["bg-amber-50 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300", "text-amber-800 dark:text-amber-300"],
+  red: ["bg-red-50 text-red-800 dark:bg-red-500/15 dark:text-red-300", "text-red-800 dark:text-red-300"],
 };
 const ICONS = {
   users: "M16 11a4 4 0 1 0-8 0M3 21c1-4 5-6 9-6s8 2 9 6",
@@ -21,21 +22,20 @@ const ICONS = {
 };
 
 export function StatsCard({ label, value, sub, tone = "brand", icon, suffix = "" }) {
-  const [grad, text] = TONES[tone];
+  const [tile, text] = TONES[tone];
   return (
-    <StaggerItem className="card card-hover relative overflow-hidden p-4">
-      <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br opacity-15 blur-xl ${grad}`} />
+    <StaggerItem className="card p-4">
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="text-xs font-medium text-slate-500">{label}</p>
         {icon && (
-          <span className={`flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm ${grad}`}>
+          <span className={`flex h-7 w-7 items-center justify-center rounded-md ${tile}`}>
             <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d={ICONS[icon]} />
             </svg>
           </span>
         )}
       </div>
-      <p className={`mt-2 text-3xl font-bold tabular-nums tracking-tight ${text}`}>
+      <p className={`mt-2 font-display text-3xl font-semibold tabular-nums ${text}`}>
         <AnimatedNumber value={value} suffix={suffix} />
       </p>
       {sub && <p className="mt-0.5 text-xs text-slate-500">{sub}</p>}
@@ -52,7 +52,7 @@ const STATUS = {
   active: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
   inactive: "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   holiday: "bg-sky-100 text-sky-800 dark:bg-sky-900/50 dark:text-sky-200",
-  leave: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200",
+  leave: "bg-brand-50 text-brand-800 dark:bg-brand-500/15 dark:text-brand-200",
   pending: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
   approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-200",
 };
@@ -107,7 +107,7 @@ export function Spinner({ rows = 4 }) {
 export function EmptyState({ title, children }) {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="card flex flex-col items-center p-10 text-center">
-      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-100 to-accent-400/20 text-brand-600 dark:from-brand-500/20 dark:text-brand-300">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-300">
         <svg viewBox="0 0 24 24" className="h-7 w-7" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h7" /></svg>
       </div>
       <p className="font-semibold">{title}</p>
@@ -129,9 +129,7 @@ export function PageHeader({ title, subtitle, children }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <motion.h1 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {title}
-        </motion.h1>
+        <h1 className="text-2xl font-semibold text-stone-900 dark:text-stone-50 sm:text-[1.75rem]">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-slate-500">{subtitle}</p>}
       </div>
       {children && <div className="flex flex-wrap gap-2">{children}</div>}

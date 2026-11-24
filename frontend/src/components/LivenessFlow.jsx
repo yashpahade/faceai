@@ -82,7 +82,7 @@ export default function LivenessFlow({ onToken, actionLabel = "Start face check"
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.35 }}
-              className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-3 rounded-2xl bg-black/60 px-4 py-3 text-base font-semibold text-white backdrop-blur-md"
+              className="absolute inset-x-3 bottom-3 flex items-center justify-center gap-3 rounded-md bg-black/70 px-4 py-3 text-base font-semibold text-white"
               role="status"
             >
               {STEP[step]?.arrow === "left" && <Arrow dir="left" />}

@@ -37,7 +37,7 @@ export default function Overview() {
       <ErrorBox error={error} />
       {data?.today.holiday && (
         <div className="card border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-100">
-          🎉 Today is a holiday: <b>{data.today.holiday}</b>. Attendance is closed.
+          Today is a holiday: <b>{data.today.holiday}</b>. Attendance is closed.
         </div>
       )}
       {data?.pending_leaves > 0 && (
@@ -69,8 +69,8 @@ export default function Overview() {
           ) : (
             <Stagger as="ul" className="space-y-1">
               {data.recent.map((r, i) => (
-                <StaggerItem as="li" key={i} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-50 dark:hover:bg-white/5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-100 to-accent-400/30 text-xs font-bold text-brand-700 dark:from-brand-500/30 dark:text-brand-100">
+                <StaggerItem as="li" key={i} className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-stone-50 dark:hover:bg-white/5">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-semibold text-brand-800 dark:bg-brand-500/20 dark:text-brand-100">
                     {r.full_name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -85,8 +85,7 @@ export default function Overview() {
         </section>
 
         <section className="card relative overflow-hidden p-5">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-gradient-to-br from-brand-400/30 to-accent-400/30 blur-2xl" />
-          <h2 className="relative font-semibold">Quick actions</h2>
+          <h2 className="relative text-lg font-semibold">Quick actions</h2>
           <div className="relative mt-4 grid gap-2">
             {[
               ["/admin/students", "Add or manage students"],
@@ -94,9 +93,9 @@ export default function Overview() {
               ["/admin/reports", "Download monthly report"],
             ].map(([to, label], i) => (
               <motion.div key={to} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.07 }}>
-                <Link to={to} className="group flex items-center justify-between rounded-xl border border-slate-200/70 px-3.5 py-3 text-sm font-medium transition hover:border-brand-300 hover:bg-brand-50/50 dark:border-white/10 dark:hover:bg-white/5">
+                <Link to={to} className="group flex items-center justify-between rounded-md border border-stone-200 px-3.5 py-3 text-sm font-medium transition-colors hover:border-brand-300 hover:bg-brand-50 dark:border-white/10 dark:hover:bg-white/5">
                   {label}
-                  <span className="text-slate-400 transition group-hover:translate-x-1 group-hover:text-brand-600">→</span>
+                  <span className="text-stone-400 transition-colors group-hover:text-brand-700">→</span>
                 </Link>
               </motion.div>
             ))}

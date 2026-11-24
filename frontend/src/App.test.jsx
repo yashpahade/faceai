@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -48,5 +48,34 @@ describe("AttendanceTable", () => {
     const { getByLabelText, findAllByText } = render(<AttendanceTable rows={rows} />);
     getByLabelText("Search").value = "";
     expect(await findAllByText("2 records")).toHaveLength(1);
+  });
+});
+
+describe("forgot password", () => {
+  beforeEach(() => useAuth.getState().logout());
+
+  it("is linked from the password sign-in form", async () => {
+    renderAt("/login");
+    fireEvent.click(await screen.findByRole("tab", { name: "Email & password" }));
+    expect(await screen.findByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/forgot-password");
+  });
+
+  it("checks the form before asking for the face", async () => {
+    renderAt("/forgot-password");
+    expect(await screen.findByRole("heading", { name: "Reset your password" })).toBeInTheDocument();
+    const set = (label, value) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    set("Email", "not-an-email");
+    set("New password", "newpass456");
+    set("Confirm new password", "different1");
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Enter the email you signed up with")).toBeInTheDocument();
+    expect(screen.getByText("Passwords don't match")).toBeInTheDocument();
+    expect(screen.queryByText(/Resetting for/)).toBeNull();
+
+    set("Email", "asha@school.in");
+    set("Confirm new password", "newpass456");
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText(/Resetting for/)).toBeInTheDocument();
+    expect(screen.getByText("asha@school.in")).toBeInTheDocument();
   });
 });

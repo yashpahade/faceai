@@ -66,6 +66,12 @@ npm run dev:phone                              # HTTPS on LAN -> open https://<P
 
 Production: [`docs/phase-e-production.md`](docs/phase-e-production.md) (`docker-compose.prod.yml`).
 
+**Forgot password** (no email server needed):
+- Student/staff with an enrolled face: login page -> *Forgot password?* -> email + new password -> face check (liveness). The face must belong to that email's account.
+- No face enrolled: admin opens the student page -> *Reset password* -> temporary password (shown once).
+- Logged in: *Profile -> Change password* (needs the current password).
+- Every reset signs the account out everywhere else. Admins reset their own password with `python -m faceai.attendance.create_admin --email ...`.
+
 ## Local development (Windows, PowerShell)
 
 ```powershell

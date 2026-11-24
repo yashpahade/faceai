@@ -121,7 +121,12 @@ export default function Login() {
               <input id="email" className="input" type="email" autoComplete="username" placeholder="you@school.in" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
             <div>
-              <label className="label" htmlFor="password">Password</label>
+              <div className="flex items-baseline justify-between">
+                <label className="label" htmlFor="password">Password</label>
+                <Link to="/forgot-password" className="text-[13px] font-medium text-brand-700 hover:underline dark:text-brand-300">
+                  Forgot password?
+                </Link>
+              </div>
               <input id="password" className="input" type="password" autoComplete="current-password" placeholder="••••••••" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
             </div>
             <ErrorBox error={error} />

@@ -2,11 +2,69 @@ import { useRef, useState } from "react";
 
 import { api, fd } from "../api/client";
 import FaceCamera from "../components/FaceCamera";
-import Field from "../components/Field";
+import Field, { PasswordChecklist } from "../components/Field";
 import ThemePicker from "../components/ThemePicker";
 import { ErrorBox, PageHeader } from "../components/ui";
-import { nameError, phoneError, sanitizeName, sanitizePhone } from "../lib/validate";
+import { nameError, passwordChecks, passwordError, phoneError, sanitizeName, sanitizePhone } from "../lib/validate";
 import { useAuth } from "../store/auth";
+
+// Purana password zaroori: koi khula phone utha ke akele password na badal de.
+function ChangePassword() {
+  const setSession = useAuth((s) => s.setSession);
+  const empty = { current: "", password: "", confirm: "" };
+  const [f, setF] = useState(empty);
+  const [touched, setTouched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [done, setDone] = useState(false);
+  const errs = {
+    current: f.current ? null : "Enter your current password",
+    password: passwordError(f.password),
+    confirm: f.confirm && f.confirm === f.password ? null : "Passwords don't match",
+  };
+
+  async function submit(e) {
+    e.preventDefault();
+    setTouched(true);
+    setError(null);
+    setDone(false);
+    if (errs.current || errs.password || errs.confirm) return;
+    setBusy(true);
+    try {
+      const r = await api("/v1/me/password", { method: "POST", json: { current_password: f.current, password: f.password } });
+      setSession(r.access_token, r.user); // is device pe logged-in raho (baaki devices logout)
+      setF(empty);
+      setTouched(false);
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} noValidate className="card space-y-4 p-5">
+      <div>
+        <h2 className="text-lg font-semibold">Change password</h2>
+        <p className="text-sm text-slate-500">You'll stay signed in here. Other devices will be signed out.</p>
+      </div>
+      <Field id="cur-pw" label="Current password" error={errs.current} touched={touched}>
+        <input id="cur-pw" className="input" type="password" autoComplete="current-password" value={f.current} onChange={(e) => setF({ ...f, current: e.target.value })} />
+      </Field>
+      <Field id="new-pw" label="New password" error={errs.password} touched={touched}>
+        <input id="new-pw" className="input" type="password" autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        <PasswordChecklist checks={passwordChecks(f.password)} />
+      </Field>
+      <Field id="confirm-pw" label="Confirm new password" error={errs.confirm} touched={touched}>
+        <input id="confirm-pw" className="input" type="password" autoComplete="new-password" value={f.confirm} onChange={(e) => setF({ ...f, confirm: e.target.value })} />
+      </Field>
+      <ErrorBox error={error} />
+      {done && <p role="status" className="rounded-md bg-green-50 p-3 text-sm text-green-800 dark:bg-green-500/10 dark:text-green-200">Password changed.</p>}
+      <button className="btn-primary" disabled={busy}>{busy ? "Changing…" : "Change password"}</button>
+    </form>
+  );
+}
 
 export default function Profile() {
   const { user, setUser } = useAuth();
@@ -63,6 +121,8 @@ export default function Profile() {
         <p className="text-sm text-slate-500">Email: {user.email}</p>
         <button className="btn-primary">Save</button>
       </form>
+
+      <ChangePassword />
 
       <div className="card space-y-4 p-5">
         <div>

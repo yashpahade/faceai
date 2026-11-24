@@ -8,6 +8,77 @@ import { ErrorBox, PageHeader, Spinner, StatsCard, useBatches } from "../../comp
 import { compressFile } from "../../lib/image";
 import { useAuth } from "../../store/auth";
 
+// Forgot password ka rasta jab student ka face enrolled nahi hai. Temporary password sirf ek
+// baar dikhta hai (server pe sirf hash) -> admin student ko de, student Profile se badal le.
+function ResetPassword({ id, name }) {
+  const [stage, setStage] = useState("idle"); // idle | confirm | busy | done
+  const [temp, setTemp] = useState(null);
+  const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
+
+  async function reset() {
+    setStage("busy");
+    setError(null);
+    try {
+      const r = await api(`/v1/admin/students/${id}/reset-password`, { method: "POST" });
+      setTemp(r.temporary_password);
+      setStage("done");
+    } catch (e) {
+      setError(e.message);
+      setStage("idle");
+    }
+  }
+
+  return (
+    <div className="space-y-2 border-t border-stone-200 pt-3 dark:border-white/10">
+      <p className="text-sm font-medium">Password</p>
+      {stage === "done" ? (
+        <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+          <p>
+            Temporary password for <b>{name}</b> (shown once):
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="rounded bg-white px-2 py-1 font-mono text-base text-stone-900 dark:bg-black/30 dark:text-stone-100">{temp}</code>
+            <button
+              type="button"
+              className="btn-secondary min-h-[36px] px-3 py-1 text-sm"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(temp);
+                  setCopied(true);
+                } catch {
+                  setCopied(false);
+                }
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+          </div>
+          <p className="text-xs">Their old password and all their sessions no longer work. Ask them to change it in Profile after signing in.</p>
+        </div>
+      ) : stage === "confirm" || stage === "busy" ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span>Reset {name}'s password? Their current password will stop working.</span>
+          <button type="button" className="btn-primary min-h-[36px] px-3 py-1 text-sm" disabled={stage === "busy"} onClick={reset}>
+            {stage === "busy" ? "Resetting…" : "Yes, reset"}
+          </button>
+          <button type="button" className="btn-secondary min-h-[36px] px-3 py-1 text-sm" disabled={stage === "busy"} onClick={() => setStage("idle")}>
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm text-slate-500">Forgot their password? Give them a temporary one.</span>
+          <button type="button" className="btn-secondary min-h-[36px] px-3 py-1 text-sm" onClick={() => setStage("confirm")}>
+            Reset password
+          </button>
+        </div>
+      )}
+      <ErrorBox error={error} />
+    </div>
+  );
+}
+
 export default function StudentDetail() {
   const { id } = useParams();
   const nav = useNavigate();
@@ -96,6 +167,7 @@ export default function StudentDetail() {
               </select>
             </div>
           </fieldset>
+          {isAdmin && <ResetPassword id={id} name={s.full_name} />}
         </div>
 
         <div className="card space-y-3 p-4">

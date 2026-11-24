@@ -55,6 +55,24 @@ class FaceLoginIn(BaseModel):
     liveness_token: str = Field(description="/v1/liveness/verify se mila single-use token")
 
 
+class FaceResetIn(_InputRules):
+    """Forgot password: email + liveness wala chehra + naya password (signup jaise rules)."""
+
+    email: str = Field(max_length=255)
+    liveness_token: str = Field(description="/v1/liveness/verify se mila single-use token")
+    password: str = Field(min_length=8, max_length=128, description="naya password")
+
+
+class ChangePasswordIn(_InputRules):
+    current_password: str = Field(max_length=128)
+    password: str = Field(min_length=8, max_length=128, description="naya password")
+
+
+class TempPasswordOut(BaseModel):
+    user_id: str
+    temporary_password: str = Field(description="sirf ek baar dikhaya jaata hai; user ko do")
+
+
 class BatchRef(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
